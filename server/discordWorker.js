@@ -157,22 +157,23 @@ function toDiscordImageUrl(layoutSvgUrl) {
 async function buildRaceEmbed(race, config, leadMinutes) {
   const start = new Date(race.date);
   const locale = 'en-GB';
+  const eventLabel = getEventTypeLabel(race.type);
 
   // Different message based on lead_minutes
   let description;
   if (leadMinutes === 0) {
-    description = `🚦 The event is starting now!`;
+    description = `🚦 ${eventLabel} is starting now!`;
   } else if (leadMinutes === 1) {
-    description = `The event starts in 1 minute!`;
+    description = `${eventLabel} starts in 1 minute!`;
   } else if (leadMinutes < 60) {
-    description = `The event starts in ${leadMinutes} minutes!`;
+    description = `${eventLabel} starts in ${leadMinutes} minutes!`;
   } else {
     const hours = Math.floor(leadMinutes / 60);
     const minutes = leadMinutes % 60;
     if (minutes === 0) {
-      description = `The event starts in ${hours} hour${hours === 1 ? '' : 's'}!`;
+      description = `${eventLabel} starts in ${hours} hour${hours === 1 ? '' : 's'}!`;
     } else {
-      description = `The event starts in ${hours} hour${hours === 1 ? '' : 's'} and ${minutes} minute${minutes === 1 ? '' : 's'}!`;
+      description = `${eventLabel} starts in ${hours} hour${hours === 1 ? '' : 's'} and ${minutes} minute${minutes === 1 ? '' : 's'}!`;
     }
   }
 
@@ -233,6 +234,17 @@ function getEventTypeName(type) {
     case 'sprint': return '⚡ Sprint';
     case 'custom': return '📝 Custom';
     default: return type;
+  }
+}
+
+function getEventTypeLabel(type) {
+  switch(type) {
+    case 'race': return '🏁 Race';
+    case 'qualifying': return '⏱️ Qualifying';
+    case 'practice': return '🔧 Practice';
+    case 'sprint': return '⚡ Sprint';
+    case 'custom': return '📝 Custom event';
+    default: return '📅 Event';
   }
 }
 

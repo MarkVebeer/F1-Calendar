@@ -35,6 +35,7 @@ const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
+const allowAllOrigins = allowedOrigins.includes('*');
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -53,7 +54,7 @@ app.use(cors({
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowAllOrigins || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
@@ -130,6 +131,29 @@ function requireDiscordAuth(req, res, next) {
   }
   req.discordUserId = session.discord_id;
   return next();
+}
+
+async function getValidDiscordAccessToken(user) {
+  const expiresAt = user.token_expires_at ? Date.parse(user.token_expires_at) : 0;
+  if (user.access_token && expiresAt > Date.now() + 60 * 1000) {
+    return user.access_token;
+  }
+
+  if (!user.refresh_token) {
+    throw new Error('Discord OAuth refresh token is missing');
+  }
+
+  const tokenData = await discord.refreshDiscordToken(user.refresh_token);
+  const refreshToken = tokenData.refresh_token || user.refresh_token;
+  const tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+  await discordDb.updateDiscordUserTokens(user.discord_id, {
+    access_token: tokenData.access_token,
+    refresh_token: refreshToken,
+    token_expires_at: tokenExpiresAt
+  });
+
+  return tokenData.access_token;
 }
 
 function getAdminToken(req) {
@@ -427,7 +451,8 @@ app.get('/api/discord/me', requireDiscordAuth, async (req, res) => {
 app.get('/api/discord/guilds', requireDiscordAuth, async (req, res) => {
   try {
     const user = await discordDb.getDiscordUserById(req.discordUserId);
-    const guilds = await discord.fetchUserGuilds(user.access_token);
+    const accessToken = await getValidDiscordAccessToken(user);
+    const guilds = await discord.fetchUserGuilds(accessToken);
     res.json(guilds);
   } catch (error) {
     console.error('Failed to fetch guilds:', error.message || error);
@@ -438,12 +463,14 @@ app.get('/api/discord/guilds', requireDiscordAuth, async (req, res) => {
 app.get('/api/discord/admin-guilds', requireDiscordAuth, async (req, res) => {
   try {
     const user = await discordDb.getDiscordUserById(req.discordUserId);
-    const guilds = await discord.fetchUserGuilds(user.access_token);
+    const accessToken = await getValidDiscordAccessToken(user);
+    const guilds = await discord.fetchUserGuilds(accessToken);
     
     // Szűrjük csak az admin jogokkal rendelkező szervereket
     // Administrator permission = 8 (bitwise)
     const adminGuilds = guilds.filter(guild => {
-      return (guild.permissions & 8) === 8;
+      const permissions = BigInt(guild.permissions || 0);
+      return guild.owner === true || (permissions & 8n) === 8n;
     });
     
     // Ellenőrizzük, hogy a bot benne van-e az egyes szerveren

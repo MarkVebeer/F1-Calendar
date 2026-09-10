@@ -32,8 +32,10 @@ Ez a parancs a `startprod.js` fájlt futtatja, ami:
 - `NODE_ENV=production` módban indít
 - ellenőrzi a kritikus env változókat
 - megtiltja a default admin credential használatát
-- elindítja a backendet production hardeninggel (helmet, rate limit, compression, szűkített CORS)
+- elindítja a backendet production hardeninggel (helmet, rate limit, compression, minden originről engedélyezett CORS)
 
 ## Megjegyzés
 
 Productionban a backend kiszolgálja a buildelt frontendet a `client/dist` mappából.
+
+A `CORS_ORIGIN=*` beállítással az API bármely domainről elérhető. A `FRONTEND_URL` ettől még az OAuth visszairányítási címe marad, ezért Discordnál a callback URL-t is engedélyezni kell.

@@ -290,6 +290,21 @@ function getDiscordUserById(discord_id) {
   });
 }
 
+function updateDiscordUserTokens(discord_id, { access_token, refresh_token, token_expires_at }) {
+  return new Promise((resolve, reject) => {
+    discordDb.run(
+      `UPDATE discord_users
+       SET access_token = ?, refresh_token = ?, token_expires_at = ?
+       WHERE discord_id = ?`,
+      [access_token, refresh_token, token_expires_at, discord_id],
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+}
+
 function upsertDiscordConfig({ guild_id, channel_id, lead_minutes, timezone, role_id, role_map }) {
   return new Promise((resolve, reject) => {
     const stmt = discordDb.prepare(`
@@ -560,6 +575,7 @@ module.exports = {
   initDiscordDatabase,
   upsertDiscordUser,
   getDiscordUserById,
+  updateDiscordUserTokens,
   upsertDiscordConfig,
   getDiscordConfigByGuild,
   getDiscordConfigByChannelId,

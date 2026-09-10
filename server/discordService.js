@@ -66,6 +66,24 @@ async function exchangeCodeForToken(code) {
   return response.data;
 }
 
+async function refreshDiscordToken(refreshToken) {
+  const { clientId, clientSecret } = getDiscordConfig();
+  const data = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken
+  });
+
+  const response = await axios.post(`${DISCORD_API}/oauth2/token`, data, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
+
+  return response.data;
+}
+
 async function fetchDiscordUser(accessToken) {
   return retryRequest(async () => {
     const response = await axios.get(`${DISCORD_API}/users/@me`, {
@@ -132,32 +150,47 @@ function buildWebsiteButton(url, label) {
   ];
 }
 
+async function postDiscordMessage(channelId, payload, headers) {
+  try {
+    const response = await axios.post(
+      `${DISCORD_API}/channels/${channelId}/messages`,
+      payload,
+      { headers }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Discord message request failed:', {
+      channelId,
+      status: error.response?.status,
+      response: error.response?.data || error.message
+    });
+    throw error;
+  }
+}
+
 async function sendChannelMessage(channelId, embed, roleId = null, options = {}) {
   const { botToken } = getDiscordConfig();
-  const payload = { embeds: [embed] };
+  const headers = {
+    Authorization: `Bot ${botToken}`
+  };
 
   const includeWebsiteButton = options.includeWebsiteButton !== false;
   const websiteUrl = options.websiteUrl || PUBLIC_APP_URL;
   const websiteButtonLabel = options.websiteButtonLabel || PUBLIC_APP_BUTTON_LABEL;
-  
+  const notificationText = options.notificationText || embed.description || embed.title || 'F1 Calendar notification';
+
+  const payload = { embeds: [embed] };
+
   if (roleId) {
-    payload.content = `<@&${roleId}>`;
+    payload.content = `${notificationText}\n||<@&${roleId}>||`;
+    payload.allowed_mentions = { roles: [String(roleId)] };
   }
 
   if (includeWebsiteButton && websiteUrl) {
     payload.components = buildWebsiteButton(websiteUrl, websiteButtonLabel);
   }
-  
-  const response = await axios.post(
-    `${DISCORD_API}/channels/${channelId}/messages`,
-    payload,
-    {
-      headers: {
-        Authorization: `Bot ${botToken}`
-      }
-    }
-  );
-  return response.data;
+
+  return postDiscordMessage(channelId, payload, headers);
 }
 
 function buildBotInviteUrl(guildId) {
@@ -165,7 +198,7 @@ function buildBotInviteUrl(guildId) {
   const params = new URLSearchParams({
     client_id: clientId,
     scope: 'bot applications.commands',
-    permissions: '2147560448'
+    permissions: '2147691520'
   });
   if (guildId) params.set('guild_id', guildId);
   return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
@@ -191,6 +224,7 @@ module.exports = {
   getDiscordConfig,
   buildDiscordAuthUrl,
   exchangeCodeForToken,
+  refreshDiscordToken,
   fetchDiscordUser,
   fetchUserGuilds,
   fetchGuildChannels,

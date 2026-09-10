@@ -28,7 +28,7 @@ if (process.env.ADMIN_USERNAME === 'admin' || process.env.ADMIN_PASSWORD === 'ad
 }
 
 if (!process.env.CORS_ORIGIN) {
-  process.env.CORS_ORIGIN = process.env.FRONTEND_URL;
+  process.env.CORS_ORIGIN = '*';
 }
 
 const { startServer } = require('./server/index');

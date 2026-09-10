@@ -33,6 +33,14 @@ if (!process.env.CORS_ORIGIN) {
 }
 
 try {
+  console.log('Preparing sqlite3 native module...');
+  execFileSync('npm', ['rebuild', 'sqlite3'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+    shell: process.platform === 'win32'
+  });
+  console.log('sqlite3 native module ready.');
+
   console.log('Building frontend...');
   execFileSync('npm', ['run', 'build'], {
     cwd: __dirname,

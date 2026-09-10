@@ -1,6 +1,7 @@
 process.env.NODE_ENV = 'production';
 
 require('dotenv').config();
+const { execFileSync } = require('child_process');
 
 const requiredEnvVars = [
   'PORT',
@@ -29,6 +30,19 @@ if (process.env.ADMIN_USERNAME === 'admin' || process.env.ADMIN_PASSWORD === 'ad
 
 if (!process.env.CORS_ORIGIN) {
   process.env.CORS_ORIGIN = '*';
+}
+
+try {
+  console.log('Building frontend...');
+  execFileSync('npm', ['run', 'build'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+    shell: process.platform === 'win32'
+  });
+  console.log('Frontend build completed.');
+} catch (error) {
+  console.error('Frontend build failed:', error.message);
+  process.exit(1);
 }
 
 const { startServer } = require('./server/index');

@@ -3,30 +3,16 @@ const ical = require('node-ical');
 const db = require('./db');
 const countries = require('i18n-iso-countries');
 const tzLookup = require('tz-lookup');
+const locationsData = require('./data/f1-locations.json');
 
 // Register English language for country name lookups
 countries.registerLocale(require('i18n-iso-countries/langs/en.json'));
 
 const ICS_URL = 'https://ics.ecal.com/ecal-sub/697a869dcce5a200022989fc/Formula%201.ics';
-const LOCATIONS_URL = process.env.F1_LOCATIONS_URL || 'https://raw.githubusercontent.com/bacinger/f1-circuits/refs/heads/master/f1-locations.json';
-
-let cachedLocations = null;
 
 async function fetchF1Locations() {
-  if (cachedLocations) {
-    return cachedLocations;
-  }
-  
-  try {
-    console.log('Fetching F1 circuit locations...');
-    const response = await axios.get(LOCATIONS_URL);
-    cachedLocations = response.data;
-    console.log(`Loaded ${Array.isArray(cachedLocations) ? cachedLocations.length : 0} circuit locations`);
-    return cachedLocations;
-  } catch (error) {
-    console.error('Failed to fetch F1 locations, using fallback:', error.message);
-    return [];
-  }
+  console.log(`Loaded ${Array.isArray(locationsData) ? locationsData.length : 0} circuit locations from local JSON`);
+  return locationsData;
 }
 
 function matchLocation(eventName, eventLocation, locationsData) {

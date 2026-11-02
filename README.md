@@ -39,3 +39,5 @@ Ez a parancs a `startprod.js` fájlt futtatja, ami:
 Productionban a backend kiszolgálja a buildelt frontendet a `client/dist` mappából.
 
 A `CORS_ORIGIN=*` beállítással az API bármely domainről elérhető. A `FRONTEND_URL` ettől még az OAuth visszairányítási címe marad, ezért Discordnál a callback URL-t is engedélyezni kell.
+
+Az F1 pálya- és helyszínadatok a verziózott [`server/data/f1-locations.json`](server/data/f1-locations.json) fájlból töltődnek be, ezért a naptár feldolgozásához nincs szükség a GitHub nyers fájljának online elérésére.

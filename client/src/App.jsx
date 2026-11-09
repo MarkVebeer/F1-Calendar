@@ -5,121 +5,6 @@ import settingsIconPng from './img/setting.png'
 
 axios.defaults.withCredentials = true
 
-const DEFAULT_TRACK_LAYOUT_JSON_URL = 'https://raw.githubusercontent.com/julesr0y/f1-circuits-svg/refs/heads/main/circuits.json'
-const DEFAULT_TRACK_LAYOUT_SVG_FOLDER_URL = 'https://raw.githubusercontent.com/julesr0y/f1-circuits-svg/refs/heads/main/circuits/white-outline'
-
-const COUNTRY_ALIASES = {
-  usa: 'united-states-of-america',
-  'united-states': 'united-states-of-america',
-  'united-states-of-america': 'united-states-of-america',
-  us: 'united-states-of-america',
-  uk: 'united-kingdom',
-  'great-britain': 'united-kingdom',
-  britain: 'united-kingdom',
-  'united-arab-emirates': 'united-arab-emirates',
-  uae: 'united-arab-emirates'
-}
-
-function normalizeCountryId(value) {
-  if (!value) return ''
-
-  const normalized = value
-    .split(',')[0]
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-
-  return COUNTRY_ALIASES[normalized] || normalized
-}
-
-function getLatestLayoutId(layouts) {
-  if (!Array.isArray(layouts) || layouts.length === 0) {
-    return null
-  }
-
-  return layouts
-    .map(layout => {
-      const layoutId = layout?.layoutId || ''
-      const lastNumber = layoutId.match(/(\d+)(?!.*\d)/)
-      return {
-        layoutId,
-        order: lastNumber ? Number.parseInt(lastNumber[1], 10) : Number.NEGATIVE_INFINITY
-      }
-    })
-    .filter(item => item.layoutId)
-    .sort((a, b) => b.order - a.order)[0]?.layoutId || null
-}
-
-function getLayoutOrder(layoutId) {
-  if (!layoutId) {
-    return Number.NEGATIVE_INFINITY
-  }
-
-  const lastNumber = layoutId.match(/(\d+)(?!.*\d)/)
-  return lastNumber ? Number.parseInt(lastNumber[1], 10) : Number.NEGATIVE_INFINITY
-}
-
-function getCircuitMaxSeasonYear(layouts) {
-  if (!Array.isArray(layouts) || layouts.length === 0) {
-    return Number.NEGATIVE_INFINITY
-  }
-
-  const years = layouts.flatMap(layout => {
-    const seasonText = layout?.seasons || ''
-    const matches = seasonText.match(/\d{4}/g)
-    return matches ? matches.map(year => Number.parseInt(year, 10)) : []
-  })
-
-  if (years.length === 0) {
-    return Number.NEGATIVE_INFINITY
-  }
-
-  return Math.max(...years)
-}
-
-function buildCountryLayoutMap(circuits) {
-  const result = {}
-  const bestByCountry = {}
-
-  if (!Array.isArray(circuits)) {
-    return result
-  }
-
-  circuits.forEach(circuit => {
-    const countryId = normalizeCountryId(circuit?.countryId)
-    const latestLayoutId = getLatestLayoutId(circuit?.layouts)
-    const maxSeasonYear = getCircuitMaxSeasonYear(circuit?.layouts)
-    const layoutOrder = getLayoutOrder(latestLayoutId)
-
-    if (!countryId || !latestLayoutId) {
-      return
-    }
-
-    const currentBest = bestByCountry[countryId]
-
-    if (
-      !currentBest ||
-      maxSeasonYear > currentBest.maxSeasonYear ||
-      (maxSeasonYear === currentBest.maxSeasonYear && layoutOrder > currentBest.layoutOrder)
-    ) {
-      bestByCountry[countryId] = {
-        layoutId: latestLayoutId,
-        maxSeasonYear,
-        layoutOrder
-      }
-    }
-  })
-
-  Object.entries(bestByCountry).forEach(([countryId, data]) => {
-    result[countryId] = data.layoutId
-  })
-
-  return result
-}
-
 function normalizeSearchText(value) {
   if (!value) {
     return ''
@@ -283,12 +168,8 @@ function App() {
   const [settingsModalAnimationOrigin, setSettingsModalAnimationOrigin] = useState(null)
   const settingsModalCloseTimerRef = useRef(null)
   const isClosingViaHistoryRef = useRef(false)
-  const [trackLayoutsByCountry, setTrackLayoutsByCountry] = useState({})
   const [failedTrackLayouts, setFailedTrackLayouts] = useState({})
-  const [trackLayoutSources, setTrackLayoutSources] = useState({
-    jsonUrl: DEFAULT_TRACK_LAYOUT_JSON_URL,
-    svgFolderUrl: DEFAULT_TRACK_LAYOUT_SVG_FOLDER_URL
-  })
+  const [showOsmCredit, setShowOsmCredit] = useState(false)
   const [isAdminView, setIsAdminView] = useState(() => window.location.hash === '#admin')
   const [isDiscordView, setIsDiscordView] = useState(() => window.location.hash === '#discord')
   const [toasts, setToasts] = useState([])
@@ -345,33 +226,9 @@ function App() {
 
   useEffect(() => {
     fetchRaces()
-  }, [])
-
-  useEffect(() => {
-    const fetchTrackLayouts = async () => {
-      try {
-        let jsonUrl = DEFAULT_TRACK_LAYOUT_JSON_URL
-        let svgFolderUrl = DEFAULT_TRACK_LAYOUT_SVG_FOLDER_URL
-
-        try {
-          const configResponse = await axios.get('/api/public-config')
-          jsonUrl = configResponse.data?.trackLayoutJsonUrl || jsonUrl
-          svgFolderUrl = configResponse.data?.trackLayoutSvgFolderUrl || svgFolderUrl
-        } catch {
-          jsonUrl = import.meta.env.VITE_TRACK_LAYOUT_JSON_URL || jsonUrl
-          svgFolderUrl = import.meta.env.VITE_TRACK_LAYOUT_SVG_FOLDER_URL || svgFolderUrl
-        }
-
-        setTrackLayoutSources({ jsonUrl, svgFolderUrl })
-        const response = await axios.get(jsonUrl, { withCredentials: false })
-        const countryLayoutMap = buildCountryLayoutMap(response.data)
-        setTrackLayoutsByCountry(countryLayoutMap)
-      } catch (error) {
-        console.error('Error fetching track layouts:', error)
-      }
-    }
-
-    fetchTrackLayouts()
+    axios.get('/api/tracks/meta')
+      .then(response => setShowOsmCredit(Boolean(response.data?.osmUsed)))
+      .catch(() => {})
   }, [])
 
   const fetchRaces = async () => {
@@ -393,19 +250,21 @@ function App() {
       // Use the already cleaned name from backend
       const gpName = race.name.trim()
       
-      // Create a normalized key for grouping
-      const groupKey = gpName
+      // Create a normalized key for grouping; the same GP recurs every season
+      const seasonYear = new Date(race.date).getUTCFullYear()
+      const groupKey = `${seasonYear} ${gpName}`
         .toLowerCase()
         .replace(/\s+/g, ' ')
         .replace(/[^\w\s]/g, '')
         .trim()
-      
+
       if (!grouped[groupKey]) {
         grouped[groupKey] = {
           name: gpName,
           location: race.location,
           city: race.city,
           circuit_name: race.circuit_name,
+          circuit_id: race.circuit_id,
           events: []
         }
       }
@@ -714,16 +573,8 @@ function App() {
     return `race-type-${type}`
   }
 
-  const getTrackLayoutUrl = (location) => {
-    const countryId = normalizeCountryId(location)
-    const layoutId = trackLayoutsByCountry[countryId]
-
-    if (!layoutId) {
-      return null
-    }
-
-    const normalizedBaseUrl = trackLayoutSources.svgFolderUrl.replace(/\/+$/, '')
-    return `${normalizedBaseUrl}/${layoutId}.svg`
+  const getTrackLayoutUrl = (circuitId) => {
+    return circuitId ? `/api/tracks/${encodeURIComponent(circuitId)}.svg` : null
   }
 
   const handleTrackLayoutImageError = (imageUrl) => {
@@ -763,7 +614,7 @@ function App() {
   const featuredEventState = featuredWeekend ? getNextWeekendEvent(featuredWeekend, nowTick) : null
   const featuredNextEvent = featuredEventState?.event || null
   const isFeaturedWeekendEventRunning = Boolean(featuredEventState?.isRunning)
-  const featuredTrackLayoutUrl = featuredWeekend ? getTrackLayoutUrl(featuredWeekend.grandPrix.location) : null
+  const featuredTrackLayoutUrl = featuredWeekend ? getTrackLayoutUrl(featuredWeekend.grandPrix.circuit_id) : null
   const featuredShowTrackLayout = featuredTrackLayoutUrl && !failedTrackLayouts[featuredTrackLayoutUrl]
   const nowTimestampMs = nowTick.getTime()
   const featuredCountdownMs = featuredEventState
@@ -928,7 +779,7 @@ function App() {
             </div>
           ) : (
             filteredGrandPrixEntries.map(([gpKey, grandPrix]) => {
-              const trackLayoutUrl = getTrackLayoutUrl(grandPrix.location)
+              const trackLayoutUrl = getTrackLayoutUrl(grandPrix.circuit_id)
               const showTrackLayout = trackLayoutUrl && !failedTrackLayouts[trackLayoutUrl]
               
               return (
@@ -1055,6 +906,7 @@ function App() {
 
         <footer className="footer">
           <p>{grandPrixCount} Grand Prix • {races.length} events</p>
+          {showOsmCredit && <p>Track data © OpenStreetMap contributors</p>}
         </footer>
       </div>
 

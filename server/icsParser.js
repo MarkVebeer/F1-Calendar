@@ -1,88 +1,17 @@
 const axios = require('axios');
 const ical = require('node-ical');
 const db = require('./db');
-const countries = require('i18n-iso-countries');
 const tzLookup = require('tz-lookup');
-const locationsData = require('./data/f1-locations.json');
-
-// Register English language for country name lookups
-countries.registerLocale(require('i18n-iso-countries/langs/en.json'));
+const { loadRegistry } = require('./tracks/registry');
+const { matchEvent } = require('./tracks/matchEvent');
+const { requestSyncForUnknownEvents } = require('./tracks/trackSync');
 
 const ICS_URL = 'https://ics.ecal.com/ecal-sub/697a869dcce5a200022989fc/Formula%201.ics';
-
-async function fetchF1Locations() {
-  console.log(`Loaded ${Array.isArray(locationsData) ? locationsData.length : 0} circuit locations from local JSON`);
-  return locationsData;
-}
-
-function matchLocation(eventName, eventLocation, locationsData) {
-  // locationsData is an array: [{location: "Melbourne", name: "Albert Park Circuit", id: "au-1953"}, ...]
-  // eventLocation is country name like "Australia", "Brazil", "Netherlands" etc from ICS
-  // eventName is like "Australian Grand Prix - Race"
-  
-  if (!Array.isArray(locationsData) || locationsData.length === 0) {
-    return {
-      country: eventLocation,
-      city: null,
-      circuit_name: null
-    };
-  }
-  
-  // Get country code from country name using i18n-iso-countries
-  // This works dynamically for any country, no hardcoded mappings needed
-  let countryCode = countries.getAlpha2Code(eventLocation, 'en');
-  
-  if (!countryCode) {
-    // If standard lookup fails, try some common aliases
-    const aliases = {
-      'uae': 'ae',
-      'united arab emirates': 'ae'
-    };
-    countryCode = aliases[eventLocation.toLowerCase()];
-  }
-  
-  if (!countryCode) {
-    // Country not recognized, return original
-    return {
-      country: eventLocation,
-      city: null,
-      circuit_name: null
-    };
-  }
-  
-  // Match by country code from JSON id field
-  for (const circuit of locationsData) {
-    const circuitId = (circuit.id || '').toLowerCase();
-    const circuitCountryCode = circuitId.substring(0, 2);
-    
-    if (circuitCountryCode === countryCode.toLowerCase()) {
-      return {
-        country: eventLocation,
-        city: circuit.location,
-        circuit_name: circuit.name,
-        lat: circuit.lat,
-        lon: circuit.lon
-      };
-    }
-  }
-  
-  // Fallback to original location
-  return {
-    country: eventLocation,
-    city: null,
-    circuit_name: null,
-    lat: null,
-    lon: null
-  };
-}
 
 async function syncCalendar() {
   try {
     console.log('Fetching calendar from:', ICS_URL);
-    
-    // Fetch F1 locations first
-    const locationsData = await fetchF1Locations();
-    
+
     // Fetch ICS file
     const response = await axios.get(ICS_URL);
     const icsData = response.data;
@@ -93,8 +22,14 @@ async function syncCalendar() {
     console.log(`Found ${Object.keys(events).length} events in calendar`);
     
     // Process and group events immediately
-    const processedRaces = processAndGroupEvents(Object.values(events), locationsData);
-    
+    const processedRaces = processAndGroupEvents(Object.values(events), loadRegistry());
+
+    const unmatched = processedRaces.filter((race) => !race.circuit_id);
+    if (unmatched.length > 0) {
+      console.warn(`No circuit found for ${unmatched.length} calendar events, e.g. "${unmatched[0].raw_summary}"`);
+      requestSyncForUnknownEvents();
+    }
+
     // Clear old data and save processed races directly to database
     console.log(`Saving ${processedRaces.length} processed races to database`);
     await db.clearAllRaces();
@@ -111,7 +46,7 @@ async function syncCalendar() {
   }
 }
 
-function processAndGroupEvents(events, locationsData = []) {
+function processAndGroupEvents(events, registry) {
   const races = [];
   const groupedByDate = {};
   
@@ -136,9 +71,9 @@ function processAndGroupEvents(events, locationsData = []) {
       // Clean event name - extract just the Grand Prix and event type
       const cleanedName = cleanEventName(summary);
       
-      // Match location with F1 circuits data
+      // Match the event to a circuit from the local registry
       const originalLocation = (event.location || '').trim();
-      const locationMatch = matchLocation(cleanedName, originalLocation, locationsData);
+      const locationMatch = matchEvent({ summary, location: originalLocation, date: eventDate }, registry);
       
       let timezone = null;
       if (locationMatch.lat !== null && locationMatch.lat !== undefined && locationMatch.lon !== null && locationMatch.lon !== undefined) {
@@ -154,6 +89,7 @@ function processAndGroupEvents(events, locationsData = []) {
         location: locationMatch.country,
         city: locationMatch.city,
         circuit_name: locationMatch.circuit_name,
+        circuit_id: locationMatch.circuit_id,
         lat: locationMatch.lat ?? null,
         lon: locationMatch.lon ?? null,
         timezone,

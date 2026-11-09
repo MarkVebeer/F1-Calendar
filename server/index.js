@@ -14,7 +14,8 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const discord = require('./discordService');
 const { startDiscordPresence } = require('./discordPresence');
-const { startScheduler } = require('./scheduler');
+const { refreshTracks, startScheduler } = require('./scheduler');
+const { findTrackFile, loadRegistry } = require('./tracks/registry');
 const { syncCalendar } = require('./icsParser');
 const { runDiscordNotifications } = require('./discordWorker');
 const { searchLocation, fetchBasicDayForecast, pickDayForecast, buildMeteogramImageUrl } = require('./meteoblueService');
@@ -26,8 +27,6 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const COOKIE_SECURE = process.env.COOKIE_SECURE
   ? process.env.COOKIE_SECURE === 'true'
   : (IS_PRODUCTION && !FRONTEND_URL.includes('localhost') && !FRONTEND_URL.includes('127.0.0.1'));
-const TRACK_LAYOUT_JSON_URL = process.env.TRACK_LAYOUT_JSON_URL || 'https://raw.githubusercontent.com/julesr0y/f1-circuits-svg/refs/heads/main/circuits.json';
-const TRACK_LAYOUT_SVG_FOLDER_URL = process.env.TRACK_LAYOUT_SVG_FOLDER_URL || process.env['TRACK:LAYOUT_SVG_FOLDER_URL'] || 'https://raw.githubusercontent.com/julesr0y/f1-circuits-svg/refs/heads/main/circuits/white-outline';
 const CLIENT_DIST_PATH = path.join(__dirname, '..', 'client', 'dist');
 
 // Middleware
@@ -209,11 +208,17 @@ function resolveUnit(units, ...keys) {
 }
 
 // API Routes
-app.get('/api/public-config', (req, res) => {
-  res.json({
-    trackLayoutJsonUrl: TRACK_LAYOUT_JSON_URL,
-    trackLayoutSvgFolderUrl: TRACK_LAYOUT_SVG_FOLDER_URL
-  });
+app.get('/api/tracks/meta', (req, res) => {
+  res.json({ osmUsed: loadRegistry().circuits.some((circuit) => circuit.geometrySource === 'osm') });
+});
+
+app.get(/^\/api\/tracks\/([a-z0-9_-]+)\.(svg|png)$/, (req, res) => {
+  const file = findTrackFile(req.params[0], req.params[1]);
+  if (!file) {
+    return res.status(404).json({ error: 'Track not found' });
+  }
+  res.set('Cache-Control', 'public, max-age=86400');
+  return res.sendFile(file);
 });
 
 app.get('/api/races', async (req, res) => {
@@ -932,6 +937,9 @@ async function initializeServices() {
 
   startScheduler();
   console.log('Scheduler started - will sync every hour');
+
+  // Runs in the background so a slow or unavailable data source cannot delay startup.
+  refreshTracks();
 
   startDiscordPresence();
   console.log('Discord presence started');

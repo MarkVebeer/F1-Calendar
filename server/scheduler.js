@@ -2,8 +2,23 @@ const cron = require('node-cron');
 const { syncCalendar } = require('./icsParser');
 const { runDiscordNotifications } = require('./discordWorker');
 const { runWeatherNotifications, runRaceDayWeatherNotifications } = require('./weatherWorker');
+const { trackSync } = require('./tracks/trackSync');
+
+async function refreshTracks() {
+  try {
+    const { changed } = await trackSync();
+    if (changed) {
+      await syncCalendar();
+    }
+  } catch (error) {
+    console.error('Track sync failed, keeping existing track data:', error.message || error);
+  }
+}
 
 function startScheduler() {
+  // Refresh circuits and track drawings once a day
+  cron.schedule('15 4 * * *', refreshTracks);
+
   // Run calendar sync every hour at minute 0
   cron.schedule('0 * * * *', async () => {
     console.log('Running scheduled calendar sync...');
@@ -30,5 +45,6 @@ function startScheduler() {
 }
 
 module.exports = {
+  refreshTracks,
   startScheduler
 };

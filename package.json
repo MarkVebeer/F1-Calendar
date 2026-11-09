@@ -10,7 +10,15 @@
     "client": "cd client && npm run dev",
     "client:dev": "cd client && npm run dev -- --port 3001",
     "build": "cd client && npm install --include=dev && npm run build",
-    "start": "node startprod.js"
+    "start": "node startprod.js",
+    "tracks:build": "node scripts/build-tracks.js",
+    "test": "node --test server/tracks/*.test.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "client/**",
+      "server/data/generated/**"
+    ]
   },
   "keywords": [
     "f1",
@@ -20,6 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",

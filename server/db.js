@@ -14,6 +14,7 @@ function initDatabase() {
         location TEXT,
         city TEXT,
         circuit_name TEXT,
+        circuit_id TEXT,
         lat REAL,
         lon REAL,
         timezone TEXT,
@@ -51,6 +52,22 @@ function initDatabase() {
         addEndDateColumn();
         // Add end_date column to custom_events if it doesn't exist
         addCustomEndDateColumn();
+        addCircuitIdColumn().then(resolve, reject);
+      });
+    });
+  });
+}
+
+// Resolves only after the column exists, because the first calendar sync writes it.
+function addCircuitIdColumn() {
+  return new Promise((resolve, reject) => {
+    db.all('PRAGMA table_info(races)', (err, columns) => {
+      if (err) return reject(err);
+      if (columns.some(col => col.name === 'circuit_id')) return resolve();
+
+      db.run('ALTER TABLE races ADD COLUMN circuit_id TEXT', (alterErr) => {
+        if (alterErr) return reject(alterErr);
+        console.log('Successfully added circuit_id column');
         resolve();
       });
     });
@@ -210,10 +227,10 @@ function getAllEvents() {
   return new Promise((resolve, reject) => {
     db.all(
       `
-        SELECT id, name, location, city, circuit_name, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
+        SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
         FROM races
         UNION ALL
-        SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
+        SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
         FROM custom_events
         ORDER BY date ASC
       `,
@@ -226,14 +243,14 @@ function getAllEvents() {
 }
 
 // Add a race
-function addRace({ name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, lat, lon, timezone }) {
+function addRace({ name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone }) {
   return new Promise((resolve, reject) => {
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO races (name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, lat, lon, timezone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO races (name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
-    stmt.run(name, location, date, end_date || null, type, ics_uid, raw_summary || null, city || null, circuit_name || null, lat ?? null, lon ?? null, timezone || null, function(err) {
+
+    stmt.run(name, location, date, end_date || null, type, ics_uid, raw_summary || null, city || null, circuit_name || null, circuit_id || null, lat ?? null, lon ?? null, timezone || null, function(err) {
       if (err) reject(err);
       else resolve(this.lastID);
     });
@@ -283,11 +300,11 @@ function getUpcomingEvents(windowHours = 72) {
     const until = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
     db.all(
       `
-        SELECT id, name, location, city, circuit_name, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
+        SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
         FROM races
         WHERE date BETWEEN ? AND ?
         UNION ALL
-        SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
+        SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
         FROM custom_events
         WHERE date BETWEEN ? AND ?
         ORDER BY date ASC

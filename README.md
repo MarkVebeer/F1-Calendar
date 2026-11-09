@@ -394,4 +394,6 @@ startprod.js            production entry point
 - Fallback track geometry from [OpenStreetMap](https://www.openstreetmap.org/copyright), © OpenStreetMap contributors, ODbL. The site shows this credit whenever such a track is in use.
 - Weather data from [meteoblue](https://www.meteoblue.com).
 
-This is an unofficial project and is not affiliated with Formula 1 or its companies. No licence has been chosen for this repository's own code yet.
+This project's own code is released under the [MIT License](LICENSE). The third-party data above stays under its own terms.
+
+This is an unofficial project and is not affiliated with Formula 1 or its companies.

@@ -27,7 +27,7 @@
     "racing"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "axios": "^1.6.2",

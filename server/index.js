@@ -207,7 +207,36 @@ function resolveUnit(units, ...keys) {
   return '';
 }
 
+const PAST_WEEKENDS_SETTING = 'past_weekends_visible';
+const DEFAULT_PAST_WEEKENDS_VISIBLE = 1;
+const MAX_PAST_WEEKENDS_VISIBLE = 24;
+
 // API Routes
+app.get('/api/site-settings', async (req, res) => {
+  try {
+    const stored = await adminDb.getSetting(PAST_WEEKENDS_SETTING);
+    res.json({ pastWeekendsVisible: stored === null ? DEFAULT_PAST_WEEKENDS_VISIBLE : Number(stored) });
+  } catch (error) {
+    console.error('Error fetching site settings:', error);
+    res.status(500).json({ error: 'Failed to fetch site settings' });
+  }
+});
+
+app.put('/api/admin/site-settings', requireAdmin, async (req, res) => {
+  const value = req.body?.pastWeekendsVisible;
+  if (!Number.isInteger(value) || value < 0 || value > MAX_PAST_WEEKENDS_VISIBLE) {
+    return res.status(400).json({ error: `pastWeekendsVisible must be a whole number from 0 to ${MAX_PAST_WEEKENDS_VISIBLE}` });
+  }
+
+  try {
+    await adminDb.setSetting(PAST_WEEKENDS_SETTING, value);
+    return res.json({ pastWeekendsVisible: value });
+  } catch (error) {
+    console.error('Error saving site settings:', error);
+    return res.status(500).json({ error: 'Failed to save site settings' });
+  }
+});
+
 app.get('/api/tracks/meta', (req, res) => {
   res.json({ osmUsed: loadRegistry().circuits.some((circuit) => circuit.geometrySource === 'osm') });
 });

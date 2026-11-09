@@ -12,7 +12,7 @@
     "build": "cd client && npm ci --include=dev && npm run build",
     "start": "node startprod.js",
     "tracks:build": "node scripts/build-tracks.js",
-    "test": "node --test server/*.test.js server/tracks/*.test.js"
+    "test": "node --test server/*.test.js server/tracks/*.test.js client/src/*.test.js"
   },
   "nodemonConfig": {
     "ignore": [

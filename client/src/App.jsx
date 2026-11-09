@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 import settingsIconPng from './img/setting.png'
+import { buildWeekendTimeline, groupBySeason, isWeekendFinished, selectVisibleWeekends } from './weekends'
 
 axios.defaults.withCredentials = true
+
+const DEFAULT_PAST_WEEKENDS_VISIBLE = 1
+const MAX_PAST_WEEKENDS_VISIBLE = 24
 
 function normalizeSearchText(value) {
   if (!value) {
@@ -24,32 +28,8 @@ function getEventTimestampMs(dateInput) {
 }
 
 function getFeaturedWeekend(groupedRaces, nowDate = new Date()) {
-  const threeHoursInMs = 3 * 60 * 60 * 1000
   const nowTimestampMs = nowDate.getTime()
-
-  const weekends = Object.entries(groupedRaces)
-    .map(([key, grandPrix]) => {
-      const sortedEvents = [...grandPrix.events].sort((a, b) => new Date(a.date) - new Date(b.date))
-      if (sortedEvents.length === 0) {
-        return null
-      }
-
-      const firstEvent = sortedEvents[0]
-      const lastEvent = sortedEvents[sortedEvents.length - 1]
-      const startMs = getEventTimestampMs(firstEvent.date)
-      const lastEventStartMs = getEventTimestampMs(lastEvent.date)
-
-      return {
-        key,
-        grandPrix,
-        firstEvent,
-        lastEvent,
-        startMs,
-        currentWindowEndMs: lastEventStartMs + threeHoursInMs
-      }
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.startMs - b.startMs)
+  const weekends = buildWeekendTimeline(groupedRaces)
 
   const currentWeekend = weekends.find(weekend => nowTimestampMs >= weekend.startMs && nowTimestampMs < weekend.currentWindowEndMs)
   if (currentWeekend) {
@@ -170,6 +150,7 @@ function App() {
   const isClosingViaHistoryRef = useRef(false)
   const [failedTrackLayouts, setFailedTrackLayouts] = useState({})
   const [showOsmCredit, setShowOsmCredit] = useState(false)
+  const [pastWeekendsVisible, setPastWeekendsVisible] = useState(DEFAULT_PAST_WEEKENDS_VISIBLE)
   const [isAdminView, setIsAdminView] = useState(() => window.location.hash === '#admin')
   const [isDiscordView, setIsDiscordView] = useState(() => window.location.hash === '#discord')
   const [toasts, setToasts] = useState([])
@@ -229,6 +210,9 @@ function App() {
     axios.get('/api/tracks/meta')
       .then(response => setShowOsmCredit(Boolean(response.data?.osmUsed)))
       .catch(() => {})
+    axios.get('/api/site-settings')
+      .then(response => setPastWeekendsVisible(response.data.pastWeekendsVisible))
+      .catch(() => {})
   }, [])
 
   const fetchRaces = async () => {
@@ -261,6 +245,7 @@ function App() {
       if (!grouped[groupKey]) {
         grouped[groupKey] = {
           name: gpName,
+          season: seasonYear,
           location: race.location,
           city: race.city,
           circuit_name: race.circuit_name,
@@ -593,11 +578,13 @@ function App() {
   }
 
   const groupedRaces = groupRacesByGrandPrix()
-  const groupedRaceEntries = Object.entries(groupedRaces)
+  const weekendTimeline = buildWeekendTimeline(groupedRaces)
   const normalizedQueryTokens = normalizeSearchText(gpSearchQuery).split(' ').filter(Boolean)
-  const filteredGrandPrixEntries = normalizedQueryTokens.length === 0
-    ? groupedRaceEntries
-    : groupedRaceEntries.filter(([, grandPrix]) => {
+  const isSearchingGrandPrix = normalizedQueryTokens.length > 0
+  // A search also reaches finished weekends that the list has scrolled off.
+  const listedWeekends = !isSearchingGrandPrix
+    ? selectVisibleWeekends(weekendTimeline, nowTick.getTime(), pastWeekendsVisible)
+    : weekendTimeline.filter(({ grandPrix }) => {
       const searchableText = normalizeSearchText([
         grandPrix.name,
         grandPrix.location,
@@ -607,6 +594,7 @@ function App() {
 
       return normalizedQueryTokens.every(token => searchableText.includes(token))
     })
+  const seasonSections = groupBySeason(listedWeekends)
 
   const grandPrixCount = Object.keys(groupedRaces).length
   const selectedGrandPrix = selectedGrandPrixKey ? groupedRaces[selectedGrandPrixKey] : null
@@ -763,29 +751,37 @@ function App() {
           </section>
         )}
 
-        <div className="gp-list-divider" aria-hidden="true">
-          <span className="gp-list-divider-label">WEEKENDS</span>
-          <span className="gp-list-divider-line" />
-        </div>
+        {seasonSections.length === 0 && (
+          <div className="races-list">
+            <div className="no-races">
+              <p>
+                {grandPrixCount === 0
+                  ? 'No races in the database yet.'
+                  : isSearchingGrandPrix ? 'No results found.' : 'No upcoming weekends.'}
+              </p>
+            </div>
+          </div>
+        )}
 
-        <div className="races-list">
-          {grandPrixCount === 0 ? (
-            <div className="no-races">
-              <p>No races in the database yet.</p>
+        {seasonSections.map(({ season, weekends }) => (
+          <section key={season} aria-label={`${season} season`}>
+            <div className="gp-list-divider">
+              <span className="gp-list-divider-label">{season} SEASON</span>
+              <span className="gp-list-divider-line" />
             </div>
-          ) : filteredGrandPrixEntries.length === 0 ? (
-            <div className="no-races">
-              <p>No results found.</p>
-            </div>
-          ) : (
-            filteredGrandPrixEntries.map(([gpKey, grandPrix]) => {
+
+            <div className="races-list">
+              {weekends.map((weekend) => {
+              const { key: gpKey, grandPrix } = weekend
               const trackLayoutUrl = getTrackLayoutUrl(grandPrix.circuit_id)
               const showTrackLayout = trackLayoutUrl && !failedTrackLayouts[trackLayoutUrl]
-              
+              const isFinished = isWeekendFinished(weekend, nowTimestampMs)
+              const isFeatured = gpKey === featuredWeekend?.key
+
               return (
                 <article
                   key={gpKey}
-                  className="race-card"
+                  className={`race-card ${isFinished ? 'is-finished' : ''}`}
                   role="button"
                   tabIndex={0}
                   onClick={(event) => openGrandPrixModal(gpKey, event.currentTarget.getBoundingClientRect())}
@@ -816,13 +812,22 @@ function App() {
                       {grandPrix.city ? `, ${grandPrix.city}` : ''}
                     </p>
                     <p className="race-card-circuit">{grandPrix.circuit_name || 'No circuit name'}</p>
-                    <span className="race-card-count">{grandPrix.events.length} events</span>
+                    <div className="race-card-tags">
+                      <span className="race-card-count">{grandPrix.events.length} events</span>
+                      {isFinished && <span className="race-card-count">Finished</span>}
+                      {isFeatured && (
+                        <span className="race-card-count is-upcoming">
+                          {featuredWeekend.mode === 'current' ? 'Current weekend' : 'Next weekend'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </article>
               )
-            })
-          )}
-        </div>
+              })}
+            </div>
+          </section>
+        ))}
 
         {isSettingsModalOpen && (
           <div className={`gp-modal-overlay ${isClosingSettingsModal ? 'is-closing' : ''}`} onClick={closeSettingsModal}>
@@ -978,6 +983,7 @@ function AdminDashboard({ onBack }) {
     newPassword: '',
     confirmPassword: ''
   })
+  const [pastWeekendsInput, setPastWeekendsInput] = useState(String(DEFAULT_PAST_WEEKENDS_VISIBLE))
 
   useEffect(() => {
     checkAuth()
@@ -986,8 +992,25 @@ function AdminDashboard({ onBack }) {
   useEffect(() => {
     if (isAuthenticated) {
       fetchCustomEvents()
+      axios.get('/api/site-settings')
+        .then(response => setPastWeekendsInput(String(response.data.pastWeekendsVisible)))
+        .catch(() => setStatus('Failed to load site settings.'))
     }
   }, [isAuthenticated])
+
+  const saveSiteSettings = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setStatus('')
+    try {
+      await axios.put('/api/admin/site-settings', { pastWeekendsVisible: Number(pastWeekendsInput) })
+      setStatus('Site settings saved.')
+    } catch (error) {
+      setStatus('Failed to save site settings.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const checkAuth = async () => {
     try {
@@ -1184,6 +1207,28 @@ function AdminDashboard({ onBack }) {
                   />
                 </div>
                 <button className="secondary-button" type="submit" disabled={isLoading}>Save password</button>
+              </form>
+            </div>
+
+            <div className="admin-card">
+              <div className="admin-card-header">
+                <h2>Site settings</h2>
+              </div>
+              <form onSubmit={saveSiteSettings}>
+                <div className="form-row">
+                  <label htmlFor="past-weekends-visible">Finished weekends shown before the next one</label>
+                  <input
+                    id="past-weekends-visible"
+                    type="number"
+                    min="0"
+                    max={MAX_PAST_WEEKENDS_VISIBLE}
+                    step="1"
+                    value={pastWeekendsInput}
+                    onChange={(e) => setPastWeekendsInput(e.target.value)}
+                    required
+                  />
+                </div>
+                <button className="secondary-button" type="submit" disabled={isLoading}>Save settings</button>
               </form>
             </div>
 

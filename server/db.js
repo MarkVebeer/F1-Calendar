@@ -237,7 +237,11 @@ async function replaceRaces(races) {
     }
 
     const placeholders = races.map(() => '?').join(', ');
-    await runStatement(`DELETE FROM races WHERE ics_uid IS NULL OR ics_uid NOT IN (${placeholders})`, races.map((race) => race.ics_uid));
+    // The calendar feed drops old events after a few weeks, but finished weekends stay listable.
+    await runStatement(
+      `DELETE FROM races WHERE ics_uid IS NULL OR (ics_uid NOT IN (${placeholders}) AND date >= ?)`,
+      [...races.map((race) => race.ics_uid), new Date().toISOString()]
+    );
     await runStatement('COMMIT');
   } catch (error) {
     await runStatement('ROLLBACK');

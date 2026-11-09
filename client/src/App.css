@@ -820,8 +820,23 @@ body {
   font-weight: 600;
 }
 
-.race-card-count {
+.race-card.is-finished {
+  opacity: 0.55;
+}
+
+.race-card-tags {
   margin-top: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.race-card-count.is-upcoming {
+  color: #ffffff;
+  background: var(--primary);
+}
+
+.race-card-count {
   width: fit-content;
   font-size: 0.76rem;
   font-weight: 600;

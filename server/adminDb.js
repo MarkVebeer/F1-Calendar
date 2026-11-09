@@ -18,8 +18,36 @@ const migrations = [
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `)
+  },
+  {
+    id: 'admin_002_settings',
+    up: (tx) => tx.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `)
   }
 ];
+
+function getSetting(key) {
+  return new Promise((resolve, reject) => {
+    adminDb.get('SELECT value FROM app_settings WHERE key = ?', [key], (err, row) => {
+      if (err) reject(err);
+      else resolve(row ? row.value : null);
+    });
+  });
+}
+
+function setSetting(key, value) {
+  return new Promise((resolve, reject) => {
+    adminDb.run(
+      'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      [key, String(value)],
+      (err) => (err ? reject(err) : resolve())
+    );
+  });
+}
 
 async function initAdminDatabase() {
   await migrate(adminDb, { name: 'admin', migrations, backupDir: path.join(dataDir, 'backups') });
@@ -77,5 +105,7 @@ function updateAdminPassword(username, password_hash) {
 module.exports = {
   initAdminDatabase,
   getAdminByUsername,
+  getSetting,
+  setSetting,
   updateAdminPassword
 };

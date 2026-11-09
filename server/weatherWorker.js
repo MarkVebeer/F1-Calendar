@@ -283,11 +283,13 @@ async function resolveWeatherLocation(event, fallbackTimeZone = 'UTC') {
   };
 }
 
+// The same Grand Prix name recurs every season, so the year is part of the key.
 function groupRacesByName(races) {
   const grouped = new Map();
   for (const race of races) {
-    const key = (race.name || '').trim();
-    if (!key) continue;
+    const name = (race.name || '').trim();
+    if (!name) continue;
+    const key = `${new Date(race.date).getUTCFullYear()}|${name}`;
     if (!grouped.has(key)) {
       grouped.set(key, []);
     }
@@ -298,7 +300,8 @@ function groupRacesByName(races) {
 
 function pickNextWeekend(groupedRaces, referenceDate = new Date()) {
   let nextWeekend = null;
-  for (const [name, events] of groupedRaces.entries()) {
+  for (const events of groupedRaces.values()) {
+    const name = events[0].name.trim();
     const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
     const startEvent = sortedEvents[0];
     const endEvent = sortedEvents[sortedEvents.length - 1];
@@ -719,7 +722,8 @@ async function runRaceDayWeatherNotifications() {
       const timeZone = config.timezone || 'UTC';
       const grouped = groupRacesByName(events.filter((event) => new Date(event.date) >= now));
 
-      for (const [raceName, raceEvents] of grouped.entries()) {
+      for (const raceEvents of grouped.values()) {
+        const raceName = raceEvents[0].name.trim();
         const todayDateString = getLocalDateString(now, timeZone);
         const eventsToday = raceEvents.filter((event) => {
           const eventDateString = getLocalDateString(new Date(event.date), timeZone);
@@ -789,4 +793,4 @@ async function runRaceDayWeatherNotifications() {
   }
 }
 
-module.exports = { runWeatherNotifications, runRaceDayWeatherNotifications, sendWeatherNotificationNow };
+module.exports = { groupRacesByName, pickNextWeekend, runWeatherNotifications, runRaceDayWeatherNotifications, sendWeatherNotificationNow };

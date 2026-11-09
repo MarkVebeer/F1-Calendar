@@ -93,6 +93,24 @@ test('replaceRaces keeps ids, updates changed rows and removes dropped ones', as
   assert.strictEqual(idOf(after, 'Renamed'), idOf(before, 'First'));
 });
 
+test('replaceRaces keeps finished races the calendar feed has dropped', async () => {
+  const db = require('./db');
+  await db.initDatabase();
+  const race = (uid, date) => ({ name: uid, location: 'Hungary', date, type: 'race', ics_uid: uid });
+  const past = race('past-race', '2020-07-19T13:00:00.000Z');
+  const future = race('cancelled-race', '2099-07-19T13:00:00.000Z');
+  const kept = race('kept-race', '2098-07-19T13:00:00.000Z');
+
+  await db.replaceRaces([past, future, kept]);
+  const pastId = (await db.getAllRaces()).find((row) => row.name === 'past-race').id;
+
+  await db.replaceRaces([kept]);
+  const rows = await db.getAllRaces();
+
+  assert.deepStrictEqual(rows.map((row) => row.name).sort(), ['kept-race', 'past-race']);
+  assert.strictEqual(rows.find((row) => row.name === 'past-race').id, pastId);
+});
+
 test('a fresh discord database gets every column', async () => {
   const discordDb = require('./discordDb');
   await discordDb.initDiscordDatabase();

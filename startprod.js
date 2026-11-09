@@ -1,21 +1,12 @@
 process.env.NODE_ENV = 'production';
 
-require('dotenv').config();
-const { execFileSync } = require('child_process');
+require('./server/env');
 
-const requiredEnvVars = [
-  'PORT',
-  'FRONTEND_URL',
-  'ADMIN_USERNAME',
-  'ADMIN_PASSWORD',
-  'DISCORD_CLIENT_ID',
-  'DISCORD_CLIENT_SECRET',
-  'DISCORD_BOT_TOKEN',
-  'DISCORD_REDIRECT_URI',
-  'METEOBLUE_API_KEY'
-];
+const requiredEnvVars = ['PORT', 'FRONTEND_URL', 'ADMIN_USERNAME', 'ADMIN_PASSWORD'];
+const optionalEnvVars = ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'DISCORD_BOT_TOKEN', 'METEOBLUE_API_KEY'];
+const isMissing = (key) => !process.env[key] || !String(process.env[key]).trim();
 
-const missingVars = requiredEnvVars.filter((key) => !process.env[key] || !String(process.env[key]).trim());
+const missingVars = requiredEnvVars.filter(isMissing);
 
 if (missingVars.length > 0) {
   console.error('Missing required environment variables for production:');
@@ -28,29 +19,12 @@ if (process.env.ADMIN_USERNAME === 'admin' || process.env.ADMIN_PASSWORD === 'ad
   process.exit(1);
 }
 
+optionalEnvVars.filter(isMissing).forEach((key) => {
+  console.warn(`${key} is not set; the features that need it are disabled.`);
+});
+
 if (!process.env.CORS_ORIGIN) {
   process.env.CORS_ORIGIN = '*';
-}
-
-try {
-  console.log('Preparing sqlite3 native module...');
-  execFileSync('npm', ['rebuild', 'sqlite3'], {
-    cwd: __dirname,
-    stdio: 'inherit',
-    shell: process.platform === 'win32'
-  });
-  console.log('sqlite3 native module ready.');
-
-  console.log('Building frontend...');
-  execFileSync('npm', ['run', 'build'], {
-    cwd: __dirname,
-    stdio: 'inherit',
-    shell: process.platform === 'win32'
-  });
-  console.log('Frontend build completed.');
-} catch (error) {
-  console.error('Frontend build failed:', error.message);
-  process.exit(1);
 }
 
 const { startServer } = require('./server/index');

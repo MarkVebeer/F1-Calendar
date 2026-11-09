@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('./env');
 const db = require('./db');
 const discordDb = require('./discordDb');
 const { startDiscordPresence } = require('./discordPresence');

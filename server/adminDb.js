@@ -1,30 +1,29 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const { dataDir } = require('./env');
+const { migrate } = require('./migrate');
 
-const adminDbPath = path.join(__dirname, '..', 'f1calendar-admin.db');
+const adminDbPath = path.join(dataDir, 'f1calendar-admin.db');
 const adminDb = new sqlite3.Database(adminDbPath);
 
-function initAdminDatabase() {
-  return new Promise((resolve, reject) => {
-    adminDb.run(`
+const migrations = [
+  {
+    id: 'admin_001_baseline',
+    up: (tx) => tx.exec(`
       CREATE TABLE IF NOT EXISTS admin_users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, async (err) => {
-      if (err) return reject(err);
+      );
+    `)
+  }
+];
 
-      try {
-        await syncAdminFromEnv();
-        resolve();
-      } catch (error) {
-        reject(error);
-      }
-    });
-  });
+async function initAdminDatabase() {
+  await migrate(adminDb, { name: 'admin', migrations, backupDir: path.join(dataDir, 'backups') });
+  await syncAdminFromEnv();
 }
 
 function syncAdminFromEnv() {

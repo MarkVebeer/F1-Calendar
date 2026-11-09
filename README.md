@@ -2,6 +2,44 @@
 
 Full-stack F1 verseny naptár alkalmazás ICS szinkronizációval.
 
+## Telepítés Pelican Panelen
+
+A repó tartalmaz egy Pelican egget: [`pelican/egg-f1calendar.json`](pelican/egg-f1calendar.json). A `ghcr.io/pelican-eggs/yolks:nodejs_22` képet használja, és `node startprod.js` paranccsal indul.
+
+### Egg importálása
+
+1. Az admin felületen nyisd meg az **Eggs → Import** oldalt.
+2. Töltsd fel a fájlt, vagy add meg a nyers GitHub-címét:
+   `https://raw.githubusercontent.com/MarkVebeer/F1-Calendar/main/pelican/egg-f1calendar.json`
+
+### Szerver létrehozása
+
+1. **Servers → Create**, válaszd az **F1 Calendar** egget.
+2. Adj hozzá egy portot. Az app a `SERVER_PORT` alapján ezen figyel.
+3. Erőforrás: telepítéshez a frontend build miatt legalább 1 GB RAM ajánlott.
+4. Töltsd ki a `PUBLIC_URL`, `ADMIN_USERNAME` és `ADMIN_PASSWORD` változókat. A Discord és a Meteoblue kulcsok opcionálisak, nélkülük az adott funkciók nem működnek.
+5. A telepítő klónozza a repót, telepíti a függőségeket és lefordítja a frontendet. Utána nyomj **Start**-ot; a konzolon megjelenik a `Server running on port` sor.
+
+Az admin jelszó forrása a panel: minden induláskor onnan szinkronizálódik.
+
+### Kell-e `.env` fájl?
+
+Nem. A panel **Startup** füle mindent tartalmaz, ami a futáshoz kell. `.env` csak ritkán változó beállításhoz kell: `CORS_ORIGIN`, `COOKIE_SECURE`, `DISCORD_REDIRECT_URI`, `TRACK_DATA_DIR`, `JOLPICA_BASE_URL`, `TRACK_GEOJSON_URL`. Hozd létre a szerver mappájának gyökerében, csak ezekkel a sorokkal, majd indítsd újra a szervert. Frissítéskor megmarad. Ha egy változó mindkét helyen szerepel, a panel az erősebb.
+
+### Domain és Discord
+
+Tegyél HTTPS-es reverse proxyt a port elé, és a `PUBLIC_URL`-be ezt a címet írd. A Discord Developer Portalon engedélyezd a `<PUBLIC_URL>/api/discord/callback` átirányítási címet.
+
+### Frissítés
+
+Nyisd meg a szervert Pelicanben, majd **Settings → Reinstall Server**. A telepítő letölti a `GIT_BRANCH` legfrissebb kódját, újratelepíti a függőségeket és újrafordítja a frontendet. A `data` mappa nem változik, az adatbázis-migrációk a következő induláskor futnak, előtte automatikus mentés készül a `data/backups` mappába. Reinstall után indítsd el újra a szervert.
+
+A reinstall magát az egget nem frissíti. Ha egy kiadás új változót hoz, előbb az admin felületen frissítsd az egget, különben nem jelenik meg a **Startup** fülön.
+
+### Meglévő adatok áthozása
+
+Másold az `f1calendar.db`, `f1calendar-admin.db` és `f1calendar-discord.db` fájlokat a `data` mappába, miközben a szerver áll. Induláskor automatikusan a jelenlegi sémára migrálnak.
+
 ## Production deploy (Node.js szerver)
 
 ### 1) Függőségek telepítése
@@ -32,6 +70,7 @@ Ez a parancs a `startprod.js` fájlt futtatja, ami:
 - `NODE_ENV=production` módban indít
 - ellenőrzi a kritikus env változókat
 - megtiltja a default admin credential használatát
+- nem buildel, ezért kódfrissítés után előbb futtasd az `npm run build` parancsot
 - elindítja a backendet production hardeninggel (helmet, rate limit, compression, minden originről engedélyezett CORS)
 
 ## Megjegyzés

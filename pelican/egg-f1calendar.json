@@ -1,0 +1,232 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PANEL",
+    "meta": {
+        "version": "PLCN_v3",
+        "update_url": "https://raw.githubusercontent.com/MarkVebeer/F1-Calendar/main/pelican/egg-f1calendar.json"
+    },
+    "exported_at": "2026-11-09T12:00:00+00:00",
+    "name": "F1 Calendar",
+    "author": "github.com/MarkVebeer",
+    "uuid": "9d56e5eb-3f2b-4571-ae6f-3e8bdc78d027",
+    "description": "F1 Calendar: a Formula 1 race calendar with a web frontend and Discord notifications. The site and the bot run in one Node.js process on the server's allocation port. Put a reverse proxy with HTTPS in front of the allocation and set PUBLIC_URL to that address. To update, use Reinstall Server.",
+    "icon": null,
+    "tags": [
+        "f1",
+        "calendar",
+        "discord",
+        "nodejs"
+    ],
+    "features": [],
+    "docker_images": {
+        "Nodejs 22": "ghcr.io/pelican-eggs/yolks:nodejs_22"
+    },
+    "file_denylist": [],
+    "startup_commands": {
+        "Default": "node startprod.js"
+    },
+    "config": {
+        "files": "{}",
+        "startup": "{\n    \"done\": \"Server running on port\"\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\n# F1 Calendar installation script\n# Server files: /mnt/server\nset -e\n\napt-get update -qq\napt-get install -y -qq git ca-certificates python3 make g++ > /dev/null\n\nREPO=\"${GIT_REPO:-https://github.com/MarkVebeer/F1-Calendar.git}\"\nBRANCH=\"${GIT_BRANCH:-main}\"\nDATA=\"${DATA_DIR:-./data}\"\n\nmkdir -p /mnt/server\ncd /mnt/server\ngit config --global --add safe.directory /mnt/server\n\nif [ -d .git ]; then\n    echo \"Updating existing F1 Calendar checkout from ${REPO} (${BRANCH})\"\n    git remote set-url origin \"${REPO}\"\n    git fetch --depth 1 origin \"${BRANCH}\"\n    git reset --hard FETCH_HEAD\nelse\n    echo \"Cloning F1 Calendar from ${REPO} (${BRANCH})\"\n    rm -rf /tmp/f1-calendar\n    git clone --depth 1 --branch \"${BRANCH}\" \"${REPO}\" /tmp/f1-calendar\n    cp -a /tmp/f1-calendar/. /mnt/server/\n    rm -rf /tmp/f1-calendar\nfi\n\n# The data folder holds the SQLite databases. It is git ignored, so updates never touch it.\nmkdir -p \"${DATA}\"\nfor db in f1calendar*.db; do\n    if [ -e \"${db}\" ] && [ ! -e \"${DATA}/${db}\" ]; then\n        echo \"Moving ${db} into ${DATA}\"\n        mv \"${db}\" \"${DATA}/${db}\"\n    fi\ndone\n\necho \"Installing dependencies\"\nnpm ci --omit=dev\n\necho \"Building the frontend\"\nnpm run build\nrm -rf client/node_modules\n\necho \"Checking the installation\"\nnode -e \"require('sqlite3'); require('@resvg/resvg-js')\"\ntest -f client/dist/index.html\n\necho \"-----------------------------------------\"\necho \"F1 Calendar installation completed\"\necho \"-----------------------------------------\"\n",
+            "container": "node:22-trixie-slim",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "sort": 1,
+            "name": "Public URL",
+            "description": "The public address of the site without a trailing slash, for example https://f1.example.com. Also used for Discord links and the OAuth callback.",
+            "env_variable": "PUBLIC_URL",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "url"
+            ]
+        },
+        {
+            "sort": 2,
+            "name": "Admin Username",
+            "description": "Username for the admin area. Cannot be \"admin\".",
+            "env_variable": "ADMIN_USERNAME",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string",
+                "max:64"
+            ]
+        },
+        {
+            "sort": 3,
+            "name": "Admin Password",
+            "description": "Password for the admin area. Synced from here on every start.",
+            "env_variable": "ADMIN_PASSWORD",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string",
+                "min:8"
+            ]
+        },
+        {
+            "sort": 4,
+            "name": "Discord Client ID",
+            "description": "Application ID from the Discord Developer Portal. Leave empty to run without Discord.",
+            "env_variable": "DISCORD_CLIENT_ID",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string"
+            ]
+        },
+        {
+            "sort": 5,
+            "name": "Discord Client Secret",
+            "description": "OAuth2 client secret from the Discord Developer Portal.",
+            "env_variable": "DISCORD_CLIENT_SECRET",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string"
+            ]
+        },
+        {
+            "sort": 6,
+            "name": "Discord Bot Token",
+            "description": "Bot token from the Discord Developer Portal.",
+            "env_variable": "DISCORD_BOT_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string"
+            ]
+        },
+        {
+            "sort": 7,
+            "name": "Meteoblue API Key",
+            "description": "Needed for weather forecasts and notifications.",
+            "env_variable": "METEOBLUE_API_KEY",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string"
+            ]
+        },
+        {
+            "sort": 8,
+            "name": "Discord Bot Status",
+            "description": "Online status of the bot.",
+            "env_variable": "DISCORD_BOT_STATUS",
+            "default_value": "online",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string",
+                "in:online,idle,dnd,invisible"
+            ]
+        },
+        {
+            "sort": 9,
+            "name": "Discord Activity Type",
+            "description": "Activity type shown on the bot.",
+            "env_variable": "DISCORD_BOT_ACTIVITY_TYPE",
+            "default_value": "WATCHING",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string",
+                "in:PLAYING,STREAMING,LISTENING,WATCHING,COMPETING"
+            ]
+        },
+        {
+            "sort": 10,
+            "name": "Discord Activity Text",
+            "description": "Activity text shown on the bot.",
+            "env_variable": "DISCORD_BOT_ACTIVITY_TEXT",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string",
+                "max:128"
+            ]
+        },
+        {
+            "sort": 11,
+            "name": "Website Button Label",
+            "description": "Label of the website button on Discord notifications.",
+            "env_variable": "PUBLIC_APP_BUTTON_LABEL",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string",
+                "max:80"
+            ]
+        },
+        {
+            "sort": 12,
+            "name": "Data Directory",
+            "description": "Folder for the databases, backups and generated tracks, relative to the server root. Reinstalling leaves it untouched.",
+            "env_variable": "DATA_DIR",
+            "default_value": "./data",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string",
+                "max:255",
+                "regex:/^[^\\/]/"
+            ]
+        },
+        {
+            "sort": 13,
+            "name": "Git Repository",
+            "description": "Repository to install and update from.",
+            "env_variable": "GIT_REPO",
+            "default_value": "https://github.com/MarkVebeer/F1-Calendar.git",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": [
+                "required",
+                "string"
+            ]
+        },
+        {
+            "sort": 14,
+            "name": "Git Branch",
+            "description": "Branch to install and update from.",
+            "env_variable": "GIT_BRANCH",
+            "default_value": "main",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": [
+                "required",
+                "string"
+            ]
+        }
+    ]
+}

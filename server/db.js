@@ -1,34 +1,34 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { dataDir } = require('./env');
+const { migrate } = require('./migrate');
 
-const dbPath = path.join(__dirname, '..', 'f1calendar.db');
+const dbPath = path.join(dataDir, 'f1calendar.db');
 const db = new sqlite3.Database(dbPath);
 
-// Initialize database
-function initDatabase() {
-  return new Promise((resolve, reject) => {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS races (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        location TEXT,
-        city TEXT,
-        circuit_name TEXT,
-        circuit_id TEXT,
-        lat REAL,
-        lon REAL,
-        timezone TEXT,
-        date TEXT NOT NULL,
-        end_date TEXT,
-        type TEXT,
-        ics_uid TEXT UNIQUE,
-        raw_summary TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) return reject(err);
-
-      db.run(`
+const migrations = [
+  {
+    // Written to bring a database from any earlier release up to date.
+    id: 'races_001_baseline',
+    up: async (tx) => {
+      await tx.exec(`
+        CREATE TABLE IF NOT EXISTS races (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          location TEXT,
+          city TEXT,
+          circuit_name TEXT,
+          circuit_id TEXT,
+          lat REAL,
+          lon REAL,
+          timezone TEXT,
+          date TEXT NOT NULL,
+          end_date TEXT,
+          type TEXT,
+          ics_uid TEXT UNIQUE,
+          raw_summary TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS custom_events (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
@@ -38,178 +38,28 @@ function initDatabase() {
           type TEXT DEFAULT 'custom',
           description TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `, (customErr) => {
-        if (customErr) return reject(customErr);
-
-        // Add raw_summary column if it doesn't exist
-        addRawSummaryColumn();
-        // Add city and circuit_name columns if they don't exist
-        addCityAndCircuitColumns();
-        // Add lat/lon/timezone columns if they don't exist
-        addLatLonTimezoneColumns();
-        // Add end_date column if it doesn't exist
-        addEndDateColumn();
-        // Add end_date column to custom_events if it doesn't exist
-        addCustomEndDateColumn();
-        addCircuitIdColumn().then(resolve, reject);
-      });
-    });
-  });
-}
-
-// Resolves only after the column exists, because the first calendar sync writes it.
-function addCircuitIdColumn() {
-  return new Promise((resolve, reject) => {
-    db.all('PRAGMA table_info(races)', (err, columns) => {
-      if (err) return reject(err);
-      if (columns.some(col => col.name === 'circuit_id')) return resolve();
-
-      db.run('ALTER TABLE races ADD COLUMN circuit_id TEXT', (alterErr) => {
-        if (alterErr) return reject(alterErr);
-        console.log('Successfully added circuit_id column');
-        resolve();
-      });
-    });
-  });
-}
-
-function addEndDateColumn() {
-  db.all("PRAGMA table_info(races)", (err, columns) => {
-    if (err) {
-      console.error('Error checking table structure:', err);
-      return;
+        );
+      `);
+      const raceColumns = [
+        ['raw_summary', 'TEXT'],
+        ['city', 'TEXT'],
+        ['circuit_name', 'TEXT'],
+        ['circuit_id', 'TEXT'],
+        ['lat', 'REAL'],
+        ['lon', 'REAL'],
+        ['timezone', 'TEXT'],
+        ['end_date', 'TEXT']
+      ];
+      for (const [column, definition] of raceColumns) {
+        await tx.addColumnIfMissing('races', column, definition);
+      }
+      await tx.addColumnIfMissing('custom_events', 'end_date', 'TEXT');
     }
+  }
+];
 
-    const hasEndDate = columns.some(col => col.name === 'end_date');
-    if (!hasEndDate) {
-      db.run("ALTER TABLE races ADD COLUMN end_date TEXT", (alterErr) => {
-        if (alterErr) {
-          console.error('Error adding end_date column:', alterErr);
-        } else {
-          console.log('Successfully added end_date column');
-        }
-      });
-    }
-  });
-}
-
-function addCustomEndDateColumn() {
-  db.all("PRAGMA table_info(custom_events)", (err, columns) => {
-    if (err) {
-      console.error('Error checking custom_events table structure:', err);
-      return;
-    }
-
-    const hasEndDate = columns.some(col => col.name === 'end_date');
-    if (!hasEndDate) {
-      db.run("ALTER TABLE custom_events ADD COLUMN end_date TEXT", (alterErr) => {
-        if (alterErr) {
-          console.error('Error adding end_date column to custom_events:', alterErr);
-        } else {
-          console.log('Successfully added end_date column to custom_events');
-        }
-      });
-    }
-  });
-}
-
-// Add raw_summary column if it doesn't exist
-function addRawSummaryColumn() {
-  db.all("PRAGMA table_info(races)", (err, columns) => {
-    if (err) {
-      console.error('Error checking table structure:', err);
-      return;
-    }
-    
-    const hasRawSummary = columns.some(col => col.name === 'raw_summary');
-    if (!hasRawSummary) {
-      db.run("ALTER TABLE races ADD COLUMN raw_summary TEXT", (err) => {
-        if (err) {
-          console.error('Error adding raw_summary column:', err);
-        } else {
-          console.log('Successfully added raw_summary column');
-        }
-      });
-    }
-  });
-}
-
-// Add city and circuit_name columns if they don't exist
-function addCityAndCircuitColumns() {
-  db.all("PRAGMA table_info(races)", (err, columns) => {
-    if (err) {
-      console.error('Error checking table structure:', err);
-      return;
-    }
-    
-    const hasCity = columns.some(col => col.name === 'city');
-    const hasCircuitName = columns.some(col => col.name === 'circuit_name');
-    
-    if (!hasCity) {
-      db.run("ALTER TABLE races ADD COLUMN city TEXT", (err) => {
-        if (err) {
-          console.error('Error adding city column:', err);
-        } else {
-          console.log('Successfully added city column');
-        }
-      });
-    }
-    
-    if (!hasCircuitName) {
-      db.run("ALTER TABLE races ADD COLUMN circuit_name TEXT", (err) => {
-        if (err) {
-          console.error('Error adding circuit_name column:', err);
-        } else {
-          console.log('Successfully added circuit_name column');
-        }
-      });
-    }
-  });
-}
-
-// Add lat, lon, and timezone columns if they don't exist
-function addLatLonTimezoneColumns() {
-  db.all("PRAGMA table_info(races)", (err, columns) => {
-    if (err) {
-      console.error('Error checking table structure:', err);
-      return;
-    }
-
-    const hasLat = columns.some(col => col.name === 'lat');
-    const hasLon = columns.some(col => col.name === 'lon');
-    const hasTimezone = columns.some(col => col.name === 'timezone');
-
-    if (!hasLat) {
-      db.run("ALTER TABLE races ADD COLUMN lat REAL", (err) => {
-        if (err) {
-          console.error('Error adding lat column:', err);
-        } else {
-          console.log('Successfully added lat column');
-        }
-      });
-    }
-
-    if (!hasLon) {
-      db.run("ALTER TABLE races ADD COLUMN lon REAL", (err) => {
-        if (err) {
-          console.error('Error adding lon column:', err);
-        } else {
-          console.log('Successfully added lon column');
-        }
-      });
-    }
-
-    if (!hasTimezone) {
-      db.run("ALTER TABLE races ADD COLUMN timezone TEXT", (err) => {
-        if (err) {
-          console.error('Error adding timezone column:', err);
-        } else {
-          console.log('Successfully added timezone column');
-        }
-      });
-    }
-  });
+function initDatabase() {
+  return migrate(db, { name: 'races', migrations, backupDir: path.join(dataDir, 'backups') });
 }
 
 // Get all races
@@ -339,13 +189,60 @@ function deleteRace(id) {
 }
 
 // Clear all races (for sync)
-function clearAllRaces() {
+function runStatement(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run('DELETE FROM races', (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
+    db.run(sql, params, (err) => (err ? reject(err) : resolve()));
   });
+}
+
+// Keeps row ids stable across syncs, because Discord notification de-duplication relies on them.
+async function replaceRaces(races) {
+  await runStatement('BEGIN IMMEDIATE');
+  try {
+    for (const race of races) {
+      await runStatement(
+        `
+          INSERT INTO races (name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(ics_uid) DO UPDATE SET
+            name = excluded.name,
+            location = excluded.location,
+            date = excluded.date,
+            end_date = excluded.end_date,
+            type = excluded.type,
+            raw_summary = excluded.raw_summary,
+            city = excluded.city,
+            circuit_name = excluded.circuit_name,
+            circuit_id = excluded.circuit_id,
+            lat = excluded.lat,
+            lon = excluded.lon,
+            timezone = excluded.timezone
+        `,
+        [
+          race.name,
+          race.location,
+          race.date,
+          race.end_date || null,
+          race.type,
+          race.ics_uid,
+          race.raw_summary || null,
+          race.city || null,
+          race.circuit_name || null,
+          race.circuit_id || null,
+          race.lat ?? null,
+          race.lon ?? null,
+          race.timezone || null
+        ]
+      );
+    }
+
+    const placeholders = races.map(() => '?').join(', ');
+    await runStatement(`DELETE FROM races WHERE ics_uid IS NULL OR ics_uid NOT IN (${placeholders})`, races.map((race) => race.ics_uid));
+    await runStatement('COMMIT');
+  } catch (error) {
+    await runStatement('ROLLBACK');
+    throw error;
+  }
 }
 
 module.exports = {
@@ -356,7 +253,7 @@ module.exports = {
   addCustomEvent,
   deleteRace,
   deleteCustomEvent,
-  clearAllRaces,
+  replaceRaces,
   getUpcomingRaces,
   getUpcomingEvents
 };

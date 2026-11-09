@@ -7,13 +7,14 @@ const { matchEvent } = require('./tracks/matchEvent');
 const { requestSyncForUnknownEvents } = require('./tracks/trackSync');
 
 const ICS_URL = 'https://ics.ecal.com/ecal-sub/697a869dcce5a200022989fc/Formula%201.ics';
+const ICS_TIMEOUT_MS = 30000;
 
 async function syncCalendar() {
   try {
     console.log('Fetching calendar from:', ICS_URL);
 
     // Fetch ICS file
-    const response = await axios.get(ICS_URL);
+    const response = await axios.get(ICS_URL, { timeout: ICS_TIMEOUT_MS });
     const icsData = response.data;
     
     // Parse ICS data
@@ -30,14 +31,13 @@ async function syncCalendar() {
       requestSyncForUnknownEvents();
     }
 
-    // Clear old data and save processed races directly to database
-    console.log(`Saving ${processedRaces.length} processed races to database`);
-    await db.clearAllRaces();
-    
-    for (const race of processedRaces) {
-      await db.addRace(race);
+    if (processedRaces.length === 0) {
+      throw new Error('Calendar contained no events, keeping existing races');
     }
-    
+
+    console.log(`Saving ${processedRaces.length} processed races to database`);
+    await db.replaceRaces(processedRaces);
+
     console.log('Calendar sync completed successfully');
     return processedRaces;
   } catch (error) {

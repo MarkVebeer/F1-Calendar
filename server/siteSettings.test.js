@@ -49,6 +49,25 @@ async function login() {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
+test('changing races or forcing a sync needs an admin session', async () => {
+  const db = require('./db');
+  await db.initDatabase();
+  const race = JSON.stringify({ name: 'Manual race', location: 'Hungary', date: '2099-07-19T13:00:00.000Z', type: 'race' });
+  const headers = { 'Content-Type': 'application/json' };
+
+  assert.strictEqual((await fetch(`${baseUrl}/api/races`, { method: 'POST', headers, body: race })).status, 401);
+  assert.strictEqual((await fetch(`${baseUrl}/api/races/1`, { method: 'DELETE' })).status, 401);
+  assert.strictEqual((await fetch(`${baseUrl}/api/sync`, { method: 'POST' })).status, 401);
+  assert.strictEqual((await db.getAllRaces()).length, 0);
+
+  const Cookie = await login();
+  const created = await fetch(`${baseUrl}/api/races`, { method: 'POST', headers: { ...headers, Cookie }, body: race });
+  assert.strictEqual(created.status, 201);
+  const { id } = await created.json();
+  assert.strictEqual((await fetch(`${baseUrl}/api/races/${id}`, { method: 'DELETE', headers: { Cookie } })).status, 204);
+  assert.strictEqual((await db.getAllRaces()).length, 0);
+});
+
 test('the default is one finished weekend', async () => {
   assert.strictEqual(await readSetting(), 1);
 });

@@ -260,7 +260,7 @@ app.get('/api/races', async (req, res) => {
   }
 });
 
-app.post('/api/races', async (req, res) => {
+app.post('/api/races', requireAdmin, async (req, res) => {
   try {
     const { name, location, date, end_date, type } = req.body;
     const id = await db.addRace({ name, location, date, end_date, type });
@@ -271,7 +271,7 @@ app.post('/api/races', async (req, res) => {
   }
 });
 
-app.delete('/api/races/:id', async (req, res) => {
+app.delete('/api/races/:id', requireAdmin, async (req, res) => {
   try {
     await db.deleteRace(req.params.id);
     res.status(204).send();
@@ -638,7 +638,7 @@ app.get('/api/discord/invite-url', (req, res) => {
   res.json({ url });
 });
 
-app.post('/api/sync', async (req, res) => {
+app.post('/api/sync', requireAdmin, async (req, res) => {
   try {
     await syncCalendar();
     res.json({ message: 'Calendar synced successfully' });

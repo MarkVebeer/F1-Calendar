@@ -1,10 +1,10 @@
-const sqlite3 = require('sqlite3').verbose();
+const { openDatabase } = require('./sqlite');
 const path = require('path');
 const { dataDir } = require('./env');
 const { migrate } = require('./migrate');
 
 const discordDbPath = path.join(dataDir, 'f1calendar-discord.db');
-const discordDb = new sqlite3.Database(discordDbPath);
+const discordDb = openDatabase(discordDbPath);
 
 const migrations = [
   {
@@ -86,13 +86,24 @@ const migrations = [
   }
 ];
 
+const DEFAULT_EVENT_TYPES = ['race', 'practice', 'qualifying', 'sprint', 'custom'];
+
 function initDiscordDatabase() {
   return migrate(discordDb, { name: 'discord', migrations, backupDir: path.join(dataDir, 'backups') });
 }
 
+async function insert(sql, params) {
+  const { lastID } = await discordDb.run(sql, params);
+  return lastID;
+}
+
+async function exists(sql, params) {
+  return Boolean(await discordDb.get(sql, params));
+}
+
 function upsertDiscordUser({ discord_id, username, avatar, access_token, refresh_token, token_expires_at }) {
-  return new Promise((resolve, reject) => {
-    const stmt = discordDb.prepare(`
+  return insert(
+    `
       INSERT INTO discord_users (discord_id, username, avatar, access_token, refresh_token, token_expires_at)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(discord_id) DO UPDATE SET
@@ -101,44 +112,28 @@ function upsertDiscordUser({ discord_id, username, avatar, access_token, refresh
         access_token = excluded.access_token,
         refresh_token = excluded.refresh_token,
         token_expires_at = excluded.token_expires_at
-    `);
-
-    stmt.run(discord_id, username, avatar, access_token, refresh_token, token_expires_at, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+    `,
+    [discord_id, username, avatar, access_token, refresh_token, token_expires_at]
+  );
 }
 
 function getDiscordUserById(discord_id) {
-  return new Promise((resolve, reject) => {
-    discordDb.get('SELECT * FROM discord_users WHERE discord_id = ?', [discord_id], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  return discordDb.get('SELECT * FROM discord_users WHERE discord_id = ?', [discord_id]);
 }
 
-function updateDiscordUserTokens(discord_id, { access_token, refresh_token, token_expires_at }) {
-  return new Promise((resolve, reject) => {
-    discordDb.run(
-      `UPDATE discord_users
-       SET access_token = ?, refresh_token = ?, token_expires_at = ?
-       WHERE discord_id = ?`,
-      [access_token, refresh_token, token_expires_at, discord_id],
-      (err) => {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
+async function updateDiscordUserTokens(discord_id, { access_token, refresh_token, token_expires_at }) {
+  await discordDb.run(
+    `UPDATE discord_users
+     SET access_token = ?, refresh_token = ?, token_expires_at = ?
+     WHERE discord_id = ?`,
+    [access_token, refresh_token, token_expires_at, discord_id]
+  );
 }
 
 function upsertDiscordConfig({ guild_id, channel_id, lead_minutes, timezone, role_id, role_map }) {
-  return new Promise((resolve, reject) => {
-    const stmt = discordDb.prepare(`
+  const roleMapJson = role_map ? JSON.stringify(role_map) : null;
+  return insert(
+    `
       INSERT INTO discord_configs (guild_id, channel_id, lead_minutes, timezone, role_id, role_map, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(guild_id) DO UPDATE SET
@@ -148,43 +143,21 @@ function upsertDiscordConfig({ guild_id, channel_id, lead_minutes, timezone, rol
         role_id = excluded.role_id,
         role_map = excluded.role_map,
         updated_at = CURRENT_TIMESTAMP
-    `);
-
-    const roleMapJson = role_map ? JSON.stringify(role_map) : null;
-    stmt.run(guild_id, channel_id, lead_minutes, timezone, role_id, roleMapJson, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+    `,
+    [guild_id, channel_id, lead_minutes, timezone, role_id, roleMapJson]
+  );
 }
 
-function getDiscordConfigByGuild(guild_id) {
-  return new Promise((resolve, reject) => {
-    discordDb.get('SELECT * FROM discord_configs WHERE guild_id = ?', [guild_id], (err, row) => {
-      if (err) reject(err);
-      else resolve(normalizeRoleMap(row));
-    });
-  });
+async function getDiscordConfigByGuild(guild_id) {
+  return normalizeRoleMap(await discordDb.get('SELECT * FROM discord_configs WHERE guild_id = ?', [guild_id]));
 }
 
-function getDiscordConfigByChannelId(channel_id) {
-  return new Promise((resolve, reject) => {
-    discordDb.get('SELECT * FROM discord_configs WHERE channel_id = ?', [channel_id], (err, row) => {
-      if (err) reject(err);
-      else resolve(normalizeRoleMap(row));
-    });
-  });
+async function getDiscordConfigByChannelId(channel_id) {
+  return normalizeRoleMap(await discordDb.get('SELECT * FROM discord_configs WHERE channel_id = ?', [channel_id]));
 }
 
-function getDiscordConfigs() {
-  return new Promise((resolve, reject) => {
-    discordDb.all('SELECT * FROM discord_configs', (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows.map(normalizeRoleMap));
-    });
-  });
+async function getDiscordConfigs() {
+  return (await discordDb.all('SELECT * FROM discord_configs')).map(normalizeRoleMap);
 }
 
 function normalizeRoleMap(row) {
@@ -201,97 +174,53 @@ function normalizeRoleMap(row) {
 }
 
 function wasDiscordNotified({ guild_id, race_id, lead_minutes }) {
-  return new Promise((resolve, reject) => {
-    discordDb.get(
-      'SELECT id FROM discord_notify_log WHERE guild_id = ? AND race_id = ? AND lead_minutes = ? LIMIT 1',
-      [guild_id, race_id, lead_minutes],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(Boolean(row));
-      }
-    );
-  });
+  return exists(
+    'SELECT id FROM discord_notify_log WHERE guild_id = ? AND race_id = ? AND lead_minutes = ? LIMIT 1',
+    [guild_id, race_id, lead_minutes]
+  );
 }
 
 function logDiscordNotification({ guild_id, race_id, channel_id, lead_minutes, scheduled_for }) {
-  return new Promise((resolve, reject) => {
-    const stmt = discordDb.prepare(`
+  return insert(
+    `
       INSERT INTO discord_notify_log (guild_id, race_id, channel_id, lead_minutes, scheduled_for)
       VALUES (?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(guild_id, race_id, channel_id, lead_minutes, scheduled_for, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+    `,
+    [guild_id, race_id, channel_id, lead_minutes, scheduled_for]
+  );
 }
 
 // Notification CRUD
-function addNotification({ guild_id, lead_minutes, event_types = ['race', 'practice', 'qualifying', 'sprint', 'custom'] }) {
-  return new Promise((resolve, reject) => {
-    const stmt = discordDb.prepare(`
-      INSERT INTO discord_notifications (guild_id, lead_minutes, event_types)
-      VALUES (?, ?, ?)
-    `);
-
-    const eventTypesJson = JSON.stringify(event_types);
-    stmt.run(guild_id, lead_minutes, eventTypesJson, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+function addNotification({ guild_id, lead_minutes, event_types = DEFAULT_EVENT_TYPES }) {
+  return insert(
+    'INSERT INTO discord_notifications (guild_id, lead_minutes, event_types) VALUES (?, ?, ?)',
+    [guild_id, lead_minutes, JSON.stringify(event_types)]
+  );
 }
 
-function getNotificationsByGuild(guild_id) {
-  return new Promise((resolve, reject) => {
-    discordDb.all(
-      'SELECT * FROM discord_notifications WHERE guild_id = ? ORDER BY lead_minutes ASC',
-      [guild_id],
-      (err, rows) => {
-        if (err) reject(err);
-        else {
-          // Parse event_types JSON
-          const parsed = rows.map(row => ({
-            ...row,
-            event_types: row.event_types ? JSON.parse(row.event_types) : ['race', 'practice', 'qualifying', 'sprint', 'custom']
-          }));
-          resolve(parsed);
-        }
-      }
-    );
-  });
+async function getNotificationsByGuild(guild_id) {
+  const rows = await discordDb.all('SELECT * FROM discord_notifications WHERE guild_id = ? ORDER BY lead_minutes ASC', [guild_id]);
+  return rows.map((row) => ({
+    ...row,
+    event_types: row.event_types ? JSON.parse(row.event_types) : [...DEFAULT_EVENT_TYPES]
+  }));
 }
 
-function deleteNotification(id) {
-  return new Promise((resolve, reject) => {
-    discordDb.run('DELETE FROM discord_notifications WHERE id = ?', [id], (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+async function deleteNotification(id) {
+  await discordDb.run('DELETE FROM discord_notifications WHERE id = ?', [id]);
 }
 
-function clearNotificationsByGuild(guild_id) {
-  return new Promise((resolve, reject) => {
-    discordDb.run('DELETE FROM discord_notifications WHERE guild_id = ?', [guild_id], (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+async function clearNotificationsByGuild(guild_id) {
+  await discordDb.run('DELETE FROM discord_notifications WHERE guild_id = ?', [guild_id]);
 }
 
 function upsertWeatherConfig({ guild_id, channel_id, days_before, hour, enabled, role_id, race_day_lead_minutes }) {
-  return new Promise((resolve, reject) => {
-    // Default values for backward compatibility
-    const daysValue = days_before !== undefined && days_before !== null ? days_before : 0;
-    const hourValue = hour !== undefined && hour !== null ? hour : 0;
-    
-    const stmt = discordDb.prepare(`
+  // Default values for backward compatibility
+  const daysValue = days_before !== undefined && days_before !== null ? days_before : 0;
+  const hourValue = hour !== undefined && hour !== null ? hour : 0;
+
+  return insert(
+    `
       INSERT INTO discord_weather_settings (guild_id, channel_id, days_before, hour, enabled, role_id, race_day_lead_minutes, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(guild_id) DO UPDATE SET
@@ -302,104 +231,50 @@ function upsertWeatherConfig({ guild_id, channel_id, days_before, hour, enabled,
         role_id = excluded.role_id,
         race_day_lead_minutes = excluded.race_day_lead_minutes,
         updated_at = CURRENT_TIMESTAMP
-    `);
-
-    const enabledValue = enabled ? 1 : 0;
-    stmt.run(guild_id, channel_id || null, daysValue, hourValue, enabledValue, role_id || null, race_day_lead_minutes || null, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+    `,
+    [guild_id, channel_id || null, daysValue, hourValue, enabled ? 1 : 0, role_id || null, race_day_lead_minutes || null]
+  );
 }
 
-function getWeatherConfigByGuild(guild_id) {
-  return new Promise((resolve, reject) => {
-    discordDb.get('SELECT * FROM discord_weather_settings WHERE guild_id = ?', [guild_id], (err, row) => {
-      if (err) reject(err);
-      else resolve(row ? { 
-        ...row, 
-        enabled: Boolean(row.enabled),
-        channel_id: row.channel_id || null,
-        role_id: row.role_id || null,
-        race_day_lead_minutes: row.race_day_lead_minutes || null
-      } : null);
-    });
-  });
+function normalizeWeatherConfig(row) {
+  return {
+    ...row,
+    enabled: Boolean(row.enabled),
+    channel_id: row.channel_id || null,
+    role_id: row.role_id || null,
+    race_day_lead_minutes: row.race_day_lead_minutes || null
+  };
 }
 
-function getWeatherConfigs() {
-  return new Promise((resolve, reject) => {
-    discordDb.all('SELECT * FROM discord_weather_settings', (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows.map(row => ({ 
-        ...row, 
-        enabled: Boolean(row.enabled),
-        channel_id: row.channel_id || null,
-        role_id: row.role_id || null,
-        race_day_lead_minutes: row.race_day_lead_minutes || null
-      })));
-    });
-  });
+async function getWeatherConfigByGuild(guild_id) {
+  const row = await discordDb.get('SELECT * FROM discord_weather_settings WHERE guild_id = ?', [guild_id]);
+  return row ? normalizeWeatherConfig(row) : null;
+}
+
+async function getWeatherConfigs() {
+  return (await discordDb.all('SELECT * FROM discord_weather_settings')).map(normalizeWeatherConfig);
 }
 
 function wasWeatherNotified({ guild_id, weekend_key }) {
-  return new Promise((resolve, reject) => {
-    discordDb.get(
-      'SELECT id FROM discord_weather_log WHERE guild_id = ? AND weekend_key = ? LIMIT 1',
-      [guild_id, weekend_key],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(Boolean(row));
-      }
-    );
-  });
+  return exists('SELECT id FROM discord_weather_log WHERE guild_id = ? AND weekend_key = ? LIMIT 1', [guild_id, weekend_key]);
 }
 
 function logWeatherNotification({ guild_id, weekend_key, scheduled_for }) {
-  return new Promise((resolve, reject) => {
-    const stmt = discordDb.prepare(`
-      INSERT INTO discord_weather_log (guild_id, weekend_key, scheduled_for)
-      VALUES (?, ?, ?)
-    `);
-
-    stmt.run(guild_id, weekend_key, scheduled_for, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+  return insert(
+    'INSERT INTO discord_weather_log (guild_id, weekend_key, scheduled_for) VALUES (?, ?, ?)',
+    [guild_id, weekend_key, scheduled_for]
+  );
 }
 
 function wasRaceDayWeatherNotified({ guild_id, race_date }) {
-  return new Promise((resolve, reject) => {
-    discordDb.get(
-      'SELECT id FROM discord_race_day_weather_log WHERE guild_id = ? AND race_date = ? LIMIT 1',
-      [guild_id, race_date],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(Boolean(row));
-      }
-    );
-  });
+  return exists('SELECT id FROM discord_race_day_weather_log WHERE guild_id = ? AND race_date = ? LIMIT 1', [guild_id, race_date]);
 }
 
 function logRaceDayWeatherNotification({ guild_id, race_date, scheduled_for }) {
-  return new Promise((resolve, reject) => {
-    const stmt = discordDb.prepare(`
-      INSERT INTO discord_race_day_weather_log (guild_id, race_date, scheduled_for)
-      VALUES (?, ?, ?)
-    `);
-
-    stmt.run(guild_id, race_date, scheduled_for, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+  return insert(
+    'INSERT INTO discord_race_day_weather_log (guild_id, race_date, scheduled_for) VALUES (?, ?, ?)',
+    [guild_id, race_date, scheduled_for]
+  );
 }
 
 module.exports = {

@@ -4,25 +4,25 @@
         "version": "PLCN_v3",
         "update_url": "https://raw.githubusercontent.com/MarkVebeer/F1-Calendar/main/pelican/egg-f1calendar.json"
     },
-    "exported_at": "2026-11-09T12:00:00+00:00",
+    "exported_at": "2026-11-18T12:00:00+00:00",
     "name": "F1 Calendar",
     "author": "github.com/MarkVebeer",
     "uuid": "9d56e5eb-3f2b-4571-ae6f-3e8bdc78d027",
-    "description": "F1 Calendar: a Formula 1 race calendar with a web frontend and Discord notifications. The site and the bot run in one Node.js process on the server's allocation port. Put a reverse proxy with HTTPS in front of the allocation and set PUBLIC_URL to that address. To update, use Reinstall Server.",
+    "description": "F1 Calendar: a Formula 1 race calendar with a web frontend and Discord notifications. The site and the bot run in one Bun process on the server's allocation port. Put a reverse proxy with HTTPS in front of the allocation and set PUBLIC_URL to that address. To update, use Reinstall Server.",
     "icon": null,
     "tags": [
         "f1",
         "calendar",
         "discord",
-        "nodejs"
+        "bun"
     ],
     "features": [],
     "docker_images": {
-        "Nodejs 22": "ghcr.io/pelican-eggs/yolks:nodejs_22"
+        "Bun Latest": "ghcr.io/pelican-eggs/yolks:bun_latest"
     },
     "file_denylist": [],
     "startup_commands": {
-        "Default": "node startprod.js"
+        "Default": "bun startprod.js"
     },
     "config": {
         "files": "{}",
@@ -32,8 +32,8 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin/bash\n# F1 Calendar installation script\n# Server files: /mnt/server\nset -e\n\napt-get update -qq\napt-get install -y -qq git ca-certificates python3 make g++ > /dev/null\n\nREPO=\"${GIT_REPO:-https://github.com/MarkVebeer/F1-Calendar.git}\"\nBRANCH=\"${GIT_BRANCH:-main}\"\nDATA=\"${DATA_DIR:-./data}\"\n\nmkdir -p /mnt/server\ncd /mnt/server\ngit config --global --add safe.directory /mnt/server\n\nif [ -d .git ]; then\n    echo \"Updating existing F1 Calendar checkout from ${REPO} (${BRANCH})\"\n    git remote set-url origin \"${REPO}\"\n    git fetch --depth 1 origin \"${BRANCH}\"\n    git reset --hard FETCH_HEAD\nelse\n    echo \"Cloning F1 Calendar from ${REPO} (${BRANCH})\"\n    rm -rf /tmp/f1-calendar\n    git clone --depth 1 --branch \"${BRANCH}\" \"${REPO}\" /tmp/f1-calendar\n    cp -a /tmp/f1-calendar/. /mnt/server/\n    rm -rf /tmp/f1-calendar\nfi\n\n# The data folder holds the SQLite databases. It is git ignored, so updates never touch it.\nmkdir -p \"${DATA}\"\nfor db in f1calendar*.db; do\n    if [ -e \"${db}\" ] && [ ! -e \"${DATA}/${db}\" ]; then\n        echo \"Moving ${db} into ${DATA}\"\n        mv \"${db}\" \"${DATA}/${db}\"\n    fi\ndone\n\necho \"Installing dependencies\"\nnpm ci --omit=dev\n\necho \"Building the frontend\"\nnpm run build\nrm -rf client/node_modules\n\necho \"Checking the installation\"\nnode -e \"require('sqlite3'); require('@resvg/resvg-js')\"\ntest -f client/dist/index.html\n\necho \"-----------------------------------------\"\necho \"F1 Calendar installation completed\"\necho \"-----------------------------------------\"\n",
-            "container": "node:22-trixie-slim",
+            "script": "#!/bin/bash\n# F1 Calendar installation script\n# Server files: /mnt/server\nset -e\n\napt-get update -qq\napt-get install -y -qq git ca-certificates > /dev/null\n\nREPO=\"${GIT_REPO:-https://github.com/MarkVebeer/F1-Calendar.git}\"\nBRANCH=\"${GIT_BRANCH:-main}\"\nDATA=\"${DATA_DIR:-./data}\"\n\nmkdir -p /mnt/server\ncd /mnt/server\ngit config --global --add safe.directory /mnt/server\n\nif [ -d .git ]; then\n    echo \"Updating existing F1 Calendar checkout from ${REPO} (${BRANCH})\"\n    git remote set-url origin \"${REPO}\"\n    git fetch --depth 1 origin \"${BRANCH}\"\n    git reset --hard FETCH_HEAD\nelse\n    echo \"Cloning F1 Calendar from ${REPO} (${BRANCH})\"\n    rm -rf /tmp/f1-calendar\n    git clone --depth 1 --branch \"${BRANCH}\" \"${REPO}\" /tmp/f1-calendar\n    cp -a /tmp/f1-calendar/. /mnt/server/\n    rm -rf /tmp/f1-calendar\nfi\n\n# The data folder holds the SQLite databases. It is git ignored, so updates never touch it.\nmkdir -p \"${DATA}\"\nfor db in f1calendar*.db; do\n    if [ -e \"${db}\" ] && [ ! -e \"${DATA}/${db}\" ]; then\n        echo \"Moving ${db} into ${DATA}\"\n        mv \"${db}\" \"${DATA}/${db}\"\n    fi\ndone\n\n# Earlier releases installed with npm; start from a clean tree so no Node.js native modules linger.\nrm -rf node_modules client/node_modules package-lock.json client/package-lock.json\n\necho \"Installing dependencies\"\nbun install --production --frozen-lockfile\n\necho \"Building the frontend\"\nbun run build\nrm -rf client/node_modules\n\necho \"Checking the installation\"\nbun -e \"require('bun:sqlite'); require('@resvg/resvg-js')\"\ntest -f client/dist/index.html\n\necho \"-----------------------------------------\"\necho \"F1 Calendar installation completed\"\necho \"-----------------------------------------\"\n",
+            "container": "oven/bun:1-debian",
             "entrypoint": "bash"
         }
     },

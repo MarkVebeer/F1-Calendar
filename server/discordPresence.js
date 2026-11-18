@@ -1,5 +1,4 @@
 const axios = require('axios');
-const WebSocket = require('ws');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -153,7 +152,7 @@ async function connectPresence() {
 
   if (ws) {
     try {
-      ws.terminate();
+      ws.close();
     } catch {
       // no-op
     }
@@ -161,20 +160,23 @@ async function connectPresence() {
   }
 
   const gatewayUrl = await fetchGatewayUrl(botToken);
-  ws = new WebSocket(`${gatewayUrl}?v=10&encoding=json`);
+  const socket = new WebSocket(`${gatewayUrl}?v=10&encoding=json`);
+  ws = socket;
 
-  ws.on('message', (message) => {
-    handleGatewayMessage(message, botToken);
+  socket.addEventListener('message', (event) => {
+    handleGatewayMessage(event.data, botToken);
   });
 
-  ws.on('close', () => {
+  socket.addEventListener('close', () => {
+    // A replaced socket closes after its successor is open; leave the new one alone.
+    if (ws !== socket) return;
     sessionId = null;
     clearTimers();
     scheduleReconnect();
   });
 
-  ws.on('error', (error) => {
-    console.error('Discord presence socket error:', error.message || error);
+  socket.addEventListener('error', (event) => {
+    console.error('Discord presence socket error:', event.message || event.type);
   });
 }
 

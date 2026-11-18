@@ -1,4 +1,4 @@
-const test = require('node:test');
+const { test } = require('bun:test');
 const assert = require('node:assert');
 const { matchEvent } = require('./matchEvent');
 const { buildSvg, extractOsmLap, validateLine } = require('./geometry');

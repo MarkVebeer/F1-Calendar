@@ -3,7 +3,8 @@
 Full-stack F1 verseny naptár alkalmazás ICS szinkronizációval.
 
 ## Tech Stack
-- Backend: Node.js + Express + SQLite
+- Runtime: Bun (bun:sqlite, bun:test, Bun.password)
+- Backend: Express + SQLite
 - Frontend: React + Vite
 - ICS parsing: node-ical
 - Scheduling: node-cron

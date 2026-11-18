@@ -3,23 +3,9 @@ const path = require('path');
 
 const BACKUPS_TO_KEEP = 5;
 
-function run(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, (err) => (err ? reject(err) : resolve()));
-  });
-}
-
-function all(db, sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)));
-  });
-}
-
-function exec(db, sql) {
-  return new Promise((resolve, reject) => {
-    db.exec(sql, (err) => (err ? reject(err) : resolve()));
-  });
-}
+const run = (db, sql, params) => db.run(sql, params);
+const all = (db, sql, params) => db.all(sql, params);
+const exec = (db, sql) => db.exec(sql);
 
 async function addColumnIfMissing(db, table, column, definition) {
   const columns = await all(db, `PRAGMA table_info(${table})`);

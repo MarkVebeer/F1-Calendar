@@ -1,10 +1,10 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { openDatabase } = require('./sqlite');
 const { dataDir } = require('./env');
 const { migrate } = require('./migrate');
 
 const dbPath = path.join(dataDir, 'f1calendar.db');
-const db = new sqlite3.Database(dbPath);
+const db = openDatabase(dbPath);
 
 const migrations = [
   {
@@ -62,191 +62,121 @@ function initDatabase() {
   return migrate(db, { name: 'races', migrations, backupDir: path.join(dataDir, 'backups') });
 }
 
-// Get all races
+const EVENT_COLUMNS = `
+  SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
+  FROM races
+  {where}
+  UNION ALL
+  SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
+  FROM custom_events
+  {where}
+  ORDER BY date ASC
+`;
+
 function getAllRaces() {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM races ORDER BY date ASC', (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  return db.all('SELECT * FROM races ORDER BY date ASC');
 }
 
-// Get all events (races + custom events)
+// Races and custom events together
 function getAllEvents() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `
-        SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
-        FROM races
-        UNION ALL
-        SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
-        FROM custom_events
-        ORDER BY date ASC
-      `,
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      }
-    );
-  });
+  return db.all(EVENT_COLUMNS.replaceAll('{where}', ''));
 }
 
-// Add a race
-function addRace({ name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone }) {
-  return new Promise((resolve, reject) => {
-    const stmt = db.prepare(`
+async function addRace({ name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone }) {
+  const { lastID } = await db.run(
+    `
       INSERT OR REPLACE INTO races (name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(name, location, date, end_date || null, type, ics_uid, raw_summary || null, city || null, circuit_name || null, circuit_id || null, lat ?? null, lon ?? null, timezone || null, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-    
-    stmt.finalize();
-  });
+    `,
+    [name, location, date, end_date || null, type, ics_uid, raw_summary || null, city || null, circuit_name || null, circuit_id || null, lat ?? null, lon ?? null, timezone || null]
+  );
+  return lastID;
 }
 
-// Add a custom event
-function addCustomEvent({ name, location, date, end_date, type, description }) {
-  return new Promise((resolve, reject) => {
-    const stmt = db.prepare(`
+async function addCustomEvent({ name, location, date, end_date, type, description }) {
+  const { lastID } = await db.run(
+    `
       INSERT INTO custom_events (name, location, date, end_date, type, description)
       VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(name, location, date, end_date || null, type || 'custom', description || null, function(err) {
-      if (err) reject(err);
-      else resolve(this.lastID);
-    });
-
-    stmt.finalize();
-  });
+    `,
+    [name, location, date, end_date || null, type || 'custom', description || null]
+  );
+  return lastID;
 }
 
 function getUpcomingRaces(windowHours = 72) {
-  return new Promise((resolve, reject) => {
-    const now = new Date();
-    const until = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
-    db.all(
-      'SELECT * FROM races WHERE type = ? AND date BETWEEN ? AND ? ORDER BY date ASC',
-      ['race', now.toISOString(), until.toISOString()],
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      }
-    );
-  });
+  const now = new Date();
+  const until = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
+  return db.all(
+    'SELECT * FROM races WHERE type = ? AND date BETWEEN ? AND ? ORDER BY date ASC',
+    ['race', now.toISOString(), until.toISOString()]
+  );
 }
 
 function getUpcomingEvents(windowHours = 72) {
-  return new Promise((resolve, reject) => {
-    // Look back 5 minutes to catch events that are about to happen or just starting
-    const now = new Date();
-    const lookbackMs = 5 * 60 * 1000; // 5 minutes back
-    const from = new Date(now.getTime() - lookbackMs);
-    const until = new Date(now.getTime() + windowHours * 60 * 60 * 1000);
-    db.all(
-      `
-        SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
-        FROM races
-        WHERE date BETWEEN ? AND ?
-        UNION ALL
-        SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
-        FROM custom_events
-        WHERE date BETWEEN ? AND ?
-        ORDER BY date ASC
-      `,
-      [from.toISOString(), until.toISOString(), from.toISOString(), until.toISOString()],
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      }
-    );
-  });
+  // Look back 5 minutes to catch events that are about to happen or just starting
+  const now = new Date();
+  const from = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+  const until = new Date(now.getTime() + windowHours * 60 * 60 * 1000).toISOString();
+  return db.all(EVENT_COLUMNS.replaceAll('{where}', 'WHERE date BETWEEN ? AND ?'), [from, until, from, until]);
 }
 
-// Delete a custom event
-function deleteCustomEvent(id) {
-  return new Promise((resolve, reject) => {
-    db.run('DELETE FROM custom_events WHERE id = ?', id, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+async function deleteCustomEvent(id) {
+  await db.run('DELETE FROM custom_events WHERE id = ?', [id]);
 }
 
-// Delete a race
-function deleteRace(id) {
-  return new Promise((resolve, reject) => {
-    db.run('DELETE FROM races WHERE id = ?', id, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+async function deleteRace(id) {
+  await db.run('DELETE FROM races WHERE id = ?', [id]);
 }
 
-// Clear all races (for sync)
-function runStatement(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, (err) => (err ? reject(err) : resolve()));
-  });
-}
+const UPSERT_RACE = `
+  INSERT INTO races (name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(ics_uid) DO UPDATE SET
+    name = excluded.name,
+    location = excluded.location,
+    date = excluded.date,
+    end_date = excluded.end_date,
+    type = excluded.type,
+    raw_summary = excluded.raw_summary,
+    city = excluded.city,
+    circuit_name = excluded.circuit_name,
+    circuit_id = excluded.circuit_id,
+    lat = excluded.lat,
+    lon = excluded.lon,
+    timezone = excluded.timezone
+`;
 
 // Keeps row ids stable across syncs, because Discord notification de-duplication relies on them.
-async function replaceRaces(races) {
-  await runStatement('BEGIN IMMEDIATE');
-  try {
-    for (const race of races) {
-      await runStatement(
-        `
-          INSERT INTO races (name, location, date, end_date, type, ics_uid, raw_summary, city, circuit_name, circuit_id, lat, lon, timezone)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(ics_uid) DO UPDATE SET
-            name = excluded.name,
-            location = excluded.location,
-            date = excluded.date,
-            end_date = excluded.end_date,
-            type = excluded.type,
-            raw_summary = excluded.raw_summary,
-            city = excluded.city,
-            circuit_name = excluded.circuit_name,
-            circuit_id = excluded.circuit_id,
-            lat = excluded.lat,
-            lon = excluded.lon,
-            timezone = excluded.timezone
-        `,
-        [
-          race.name,
-          race.location,
-          race.date,
-          race.end_date || null,
-          race.type,
-          race.ics_uid,
-          race.raw_summary || null,
-          race.city || null,
-          race.circuit_name || null,
-          race.circuit_id || null,
-          race.lat ?? null,
-          race.lon ?? null,
-          race.timezone || null
-        ]
-      );
-    }
-
-    const placeholders = races.map(() => '?').join(', ');
-    // The calendar feed drops old events after a few weeks, but finished weekends stay listable.
-    await runStatement(
-      `DELETE FROM races WHERE ics_uid IS NULL OR (ics_uid NOT IN (${placeholders}) AND date >= ?)`,
-      [...races.map((race) => race.ics_uid), new Date().toISOString()]
+const replaceRacesTx = db.raw.transaction((races) => {
+  const upsertRace = db.raw.query(UPSERT_RACE);
+  for (const race of races) {
+    upsertRace.run(
+      race.name,
+      race.location,
+      race.date,
+      race.end_date || null,
+      race.type,
+      race.ics_uid,
+      race.raw_summary || null,
+      race.city || null,
+      race.circuit_name || null,
+      race.circuit_id || null,
+      race.lat ?? null,
+      race.lon ?? null,
+      race.timezone || null
     );
-    await runStatement('COMMIT');
-  } catch (error) {
-    await runStatement('ROLLBACK');
-    throw error;
   }
+
+  const placeholders = races.map(() => '?').join(', ');
+  // The calendar feed drops old events after a few weeks, but finished weekends stay listable.
+  db.raw
+    .prepare(`DELETE FROM races WHERE ics_uid IS NULL OR (ics_uid NOT IN (${placeholders}) AND date >= ?)`)
+    .run(...races.map((race) => race.ics_uid), new Date().toISOString());
+});
+
+async function replaceRaces(races) {
+  replaceRacesTx.immediate(races);
 }
 
 module.exports = {

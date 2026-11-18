@@ -1,27 +1,23 @@
-const test = require('node:test');
+const { test } = require('bun:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const sqlite3 = require('sqlite3');
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'f1-migrate-'));
 process.env.DATA_DIR = dataDir;
 process.env.TRACK_DATA_DIR = path.join(dataDir, 'tracks');
 
 const { migrate } = require('./migrate');
+const { openDatabase } = require('./sqlite');
 
-const query = (db, sql) => new Promise((resolve, reject) => {
-  db.all(sql, (err, rows) => (err ? reject(err) : resolve(rows)));
-});
-const execute = (db, sql) => new Promise((resolve, reject) => {
-  db.exec(sql, (err) => (err ? reject(err) : resolve()));
-});
-const close = (db) => new Promise((resolve) => db.close(resolve));
+const query = (db, sql) => db.all(sql);
+const execute = (db, sql) => db.exec(sql);
+const close = (db) => db.close();
 const columnNames = async (db, table) => (await query(db, `PRAGMA table_info(${table})`)).map((column) => column.name);
 const backups = (prefix) => fs.readdirSync(path.join(dataDir, 'backups')).filter((file) => file.startsWith(prefix));
 
-const memoryDb = () => new sqlite3.Database(':memory:');
+const memoryDb = () => openDatabase(':memory:');
 
 test('a failed migration is rolled back and not recorded', async () => {
   const db = memoryDb();
@@ -50,7 +46,7 @@ test('an applied migration runs only once', async () => {
 });
 
 test('an old races database is upgraded, backed up and keeps its data', async () => {
-  const oldDb = new sqlite3.Database(path.join(dataDir, 'f1calendar.db'));
+  const oldDb = openDatabase(path.join(dataDir, 'f1calendar.db'));
   await execute(oldDb, `
     CREATE TABLE races (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, location TEXT, date TEXT NOT NULL, type TEXT, ics_uid TEXT UNIQUE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE custom_events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, location TEXT, date TEXT NOT NULL, type TEXT DEFAULT 'custom', description TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
@@ -70,7 +66,7 @@ test('an old races database is upgraded, backed up and keeps its data', async ()
   assert.strictEqual(events[0].name, 'Watch party');
   assert.strictEqual(events[0].circuit_id, null);
 
-  const check = new sqlite3.Database(path.join(dataDir, 'f1calendar.db'));
+  const check = openDatabase(path.join(dataDir, 'f1calendar.db'));
   const columns = await columnNames(check, 'races');
   ['raw_summary', 'city', 'circuit_name', 'circuit_id', 'lat', 'lon', 'timezone', 'end_date'].forEach((column) => assert.ok(columns.includes(column), column));
   assert.ok((await columnNames(check, 'custom_events')).includes('end_date'));
@@ -115,7 +111,7 @@ test('a fresh discord database gets every column', async () => {
   const discordDb = require('./discordDb');
   await discordDb.initDiscordDatabase();
 
-  const check = new sqlite3.Database(path.join(dataDir, 'f1calendar-discord.db'));
+  const check = openDatabase(path.join(dataDir, 'f1calendar-discord.db'));
   assert.ok((await columnNames(check, 'discord_notifications')).includes('event_types'));
   assert.ok((await columnNames(check, 'discord_weather_settings')).includes('channel_id'));
   await close(check);

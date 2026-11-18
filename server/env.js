@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Values set by the host (for example Pelican) win over .env, which is only for rarely changed settings.
-require('dotenv').config();
+// Bun loads .env from the working directory on its own, without overriding variables already set.
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 const { env } = process;

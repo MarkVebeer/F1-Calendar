@@ -2,7 +2,7 @@
 
 A self-hosted Formula 1 calendar with a web frontend and Discord notifications. It follows the official F1 calendar feed, shows every weekend with its own track drawing, and can post session reminders and weather forecasts to your Discord servers.
 
-The website, API, background jobs and Discord bot all run in a single Node.js process backed by SQLite, so there is nothing else to host.
+The website, API, background jobs and Discord bot all run in a single [Bun](https://bun.sh) process backed by SQLite, so there is nothing else to host.
 
 ## Contents
 
@@ -67,18 +67,18 @@ OpenStreetMap ────┘
 
 Requests are only ever served from local data. External sources are used by the background jobs, and when one fails the app keeps its last good copy.
 
-**Stack:** Node.js, Express, SQLite (`sqlite3`), React, Vite, `node-cron`, `node-ical` and `resvg`.
+**Stack:** Bun, Express, SQLite (`bun:sqlite`), React, Vite, `node-cron`, `node-ical` and `resvg`.
 
 ## Quick start (local development)
 
-You need [Node.js](https://nodejs.org) 22 or newer and Git.
+You need [Bun](https://bun.sh) 1.3 or newer and Git.
 
 ```bash
 git clone https://github.com/MarkVebeer/F1-Calendar.git
 cd F1-Calendar
-npm install
-npm --prefix client install
-npm run dev
+bun install
+(cd client && bun install)
+bun run dev
 ```
 
 Open <http://localhost:3001>. The frontend runs on port 3001 and proxies `/api` to the backend on port 3002.
@@ -141,7 +141,9 @@ You rarely need these. On Pelican they go in a `.env` file.
 
 ## Deploy on Pelican Panel
 
-The repository ships an egg in [`pelican/egg-f1calendar.json`](pelican/egg-f1calendar.json). It uses the `ghcr.io/pelican-eggs/yolks:nodejs_22` image and starts with `node startprod.js`.
+The repository ships an egg in [`pelican/egg-f1calendar.json`](pelican/egg-f1calendar.json). It uses the `ghcr.io/pelican-eggs/yolks:bun_latest` image and starts with `bun startprod.js`.
+
+**Coming from the Node.js egg?** Import the updated egg, then on each existing server open **Startup** and switch the Docker image to **Bun Latest** before you reinstall. Pelican does not change the image of existing servers on its own. Your databases carry over unchanged.
 
 ### 1. Import the egg
 
@@ -179,25 +181,25 @@ Stop the server and copy `f1calendar.db`, `f1calendar-admin.db` and `f1calendar-
 
 ## Deploy on your own server
 
-You need Node.js 22 or newer and enough memory to build the frontend (about 1 GB).
+You need Bun 1.3 or newer and enough memory to build the frontend (about 1 GB).
 
 ```bash
 git clone https://github.com/MarkVebeer/F1-Calendar.git
 cd F1-Calendar
 cp .env.example .env    # then fill in real values
-npm ci --omit=dev
-npm run build
-npm start
+bun install --production --frozen-lockfile
+bun run build
+bun run start
 ```
 
-`npm start` runs [`startprod.js`](startprod.js), which checks the configuration and starts the server. It does not build anything. Use a process manager such as systemd or pm2 to keep it running.
+`bun run start` runs [`startprod.js`](startprod.js), which checks the configuration and starts the server. It does not build anything. Use a process manager such as systemd or pm2 to keep it running.
 
 To update:
 
 ```bash
 git pull
-npm ci --omit=dev
-npm run build
+bun install --production --frozen-lockfile
+bun run build
 ```
 
 Then restart the app. Migrations run on startup.
@@ -279,7 +281,7 @@ Calendar events are matched to circuits in [`server/tracks/matchEvent.js`](serve
 A starter set of circuits and drawings is committed in `server/data/seed/`, so a fresh install works immediately. Runtime results go to `<DATA_DIR>/tracks` and take priority over the seed. To rebuild the seed:
 
 ```bash
-npm run tracks:build
+bun run tracks:build
 ```
 
 To supply a track by hand, save a GeoJSON `LineString` (or a `FeatureCollection` containing one) as `server/data/overrides/<circuitId>.geojson`. Circuit ids are listed in `server/data/seed/circuits.json`.
@@ -365,11 +367,11 @@ startprod.js            production entry point
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Start the backend and frontend with reload |
-| `npm test` | Run the test suite |
-| `npm run build` | Build the frontend into `client/dist` |
-| `npm start` | Start in production mode |
-| `npm run tracks:build` | Regenerate the committed track seed |
+| `bun run dev` | Start the backend and frontend with reload |
+| `bun run test` | Run the test suite |
+| `bun run build` | Build the frontend into `client/dist` |
+| `bun run start` | Start in production mode |
+| `bun run tracks:build` | Regenerate the committed track seed |
 
 ## Troubleshooting
 
@@ -377,7 +379,7 @@ startprod.js            production entry point
 |---|---|
 | `Missing required environment variables` | Set the listed values. `PUBLIC_URL` covers `FRONTEND_URL` |
 | `Refusing to start in production with default admin credentials` | Use a username other than `admin` and a password other than `admin123` |
-| The site shows a blank page or a 404 in production | Run `npm run build`. On Pelican, reinstall the server and read the install log |
+| The site shows a blank page or a 404 in production | Run `bun run build`. On Pelican, reinstall the server and read the install log |
 | `Track layout unavailable` on a card | No valid line exists for that circuit yet. Check the log, or add an [override](#track-data-and-drawings) |
 | A weekend has no circuit name | The event could not be matched yet. A track sync is triggered automatically, at most every 6 hours |
 | Discord says the redirect URI is invalid | The redirect in the Developer Portal must match `<PUBLIC_URL>/api/discord/callback` exactly |

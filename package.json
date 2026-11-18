@@ -2,24 +2,17 @@
   "name": "f1-calendar",
   "version": "1.0.0",
   "description": "F1 verseny naptár alkalmazás ICS szinkronizációval",
-  "main": "server/index.js",
+  "main": "server/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "server": "nodemon server/index.js",
-    "server:dev": "cross-env NODE_ENV=development PORT=3002 FRONTEND_URL=http://localhost:3001 CORS_ORIGIN=http://localhost:3001 nodemon server/index.js",
-    "client": "cd client && npm run dev",
-    "client:dev": "cd client && npm run dev -- --port 3001",
-    "build": "cd client && npm ci --include=dev && npm run build",
-    "start": "node startprod.js",
-    "tracks:build": "node scripts/build-tracks.js",
-    "test": "node --test server/*.test.js server/tracks/*.test.js client/src/*.test.js"
-  },
-  "nodemonConfig": {
-    "ignore": [
-      "client/**",
-      "data/**",
-      "server/data/generated/**"
-    ]
+    "dev": "concurrently \"bun run server:dev\" \"bun run client:dev\"",
+    "server": "bun --watch server/main.js",
+    "server:dev": "NODE_ENV=development PORT=3002 FRONTEND_URL=http://localhost:3001 CORS_ORIGIN=http://localhost:3001 bun --watch server/main.js",
+    "client": "cd client && bun run dev",
+    "client:dev": "cd client && bun run dev --port 3001",
+    "build": "cd client && bun install --frozen-lockfile && bun run build",
+    "start": "bun startprod.js",
+    "tracks:build": "bun scripts/build-tracks.js",
+    "test": "bun test server/migrate.test.js && bun test server/siteSettings.test.js && bun test server/tracks client/src"
   },
   "keywords": [
     "f1",
@@ -31,28 +24,22 @@
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "axios": "^1.6.2",
-    "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "i18n-iso-countries": "^7.14.0",
     "node-cron": "^3.0.3",
     "node-ical": "^0.16.1",
-    "sqlite3": "^5.1.6",
-    "tz-lookup": "^6.1.25",
-    "ws": "^8.19.0"
+    "tz-lookup": "^6.1.25"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "cross-env": "^7.0.3",
-    "nodemon": "^3.0.2"
+    "concurrently": "^8.2.2"
   },
-  "allowScripts": {
-    "sqlite3": true,
-    "esbuild": true
-  }
+  "engines": {
+    "bun": ">=1.3"
+  },
+  "packageManager": "bun@1.3.10"
 }

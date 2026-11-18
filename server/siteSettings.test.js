@@ -1,4 +1,4 @@
-const test = require('node:test');
+const { test, beforeAll, afterAll } = require('bun:test');
 const assert = require('node:assert');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -21,7 +21,7 @@ const { groupRacesByName, pickNextWeekend } = require('./weatherWorker');
 let server;
 let baseUrl;
 
-test.before(async () => {
+beforeAll(async () => {
   await adminDb.initAdminDatabase();
   await new Promise((resolve) => {
     server = app.listen(0, resolve);
@@ -29,7 +29,7 @@ test.before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-test.after(() => server.close());
+afterAll(() => server.close());
 
 const putSetting = (value, cookie) => fetch(`${baseUrl}/api/admin/site-settings`, {
   method: 'PUT',

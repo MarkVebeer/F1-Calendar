@@ -1,11 +1,10 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const bcrypt = require('bcryptjs');
+const { openDatabase } = require('./sqlite');
 const { dataDir } = require('./env');
 const { migrate } = require('./migrate');
 
 const adminDbPath = path.join(dataDir, 'f1calendar-admin.db');
-const adminDb = new sqlite3.Database(adminDbPath);
+const adminDb = openDatabase(adminDbPath);
 
 const migrations = [
   {
@@ -30,23 +29,16 @@ const migrations = [
   }
 ];
 
-function getSetting(key) {
-  return new Promise((resolve, reject) => {
-    adminDb.get('SELECT value FROM app_settings WHERE key = ?', [key], (err, row) => {
-      if (err) reject(err);
-      else resolve(row ? row.value : null);
-    });
-  });
+async function getSetting(key) {
+  const row = await adminDb.get('SELECT value FROM app_settings WHERE key = ?', [key]);
+  return row ? row.value : null;
 }
 
-function setSetting(key, value) {
-  return new Promise((resolve, reject) => {
-    adminDb.run(
-      'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-      [key, String(value)],
-      (err) => (err ? reject(err) : resolve())
-    );
-  });
+async function setSetting(key, value) {
+  await adminDb.run(
+    'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    [key, String(value)]
+  );
 }
 
 async function initAdminDatabase() {
@@ -54,52 +46,30 @@ async function initAdminDatabase() {
   await syncAdminFromEnv();
 }
 
-function syncAdminFromEnv() {
-  return new Promise((resolve, reject) => {
-    const username = process.env.ADMIN_USERNAME || 'admin';
-    const password = process.env.ADMIN_PASSWORD || 'admin123';
+async function syncAdminFromEnv() {
+  const username = process.env.ADMIN_USERNAME || 'admin';
+  const password = process.env.ADMIN_PASSWORD || 'admin123';
+  const password_hash = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 });
 
-    bcrypt.hash(password, 10)
-      .then((password_hash) => {
-        adminDb.run(
-          `
-            INSERT INTO admin_users (username, password_hash)
-            VALUES (?, ?)
-            ON CONFLICT(username)
-            DO UPDATE SET password_hash = excluded.password_hash
-          `,
-          [username, password_hash],
-          (upsertErr) => {
-            if (upsertErr) return reject(upsertErr);
-            console.log(`Admin user synced from env: ${username}`);
-            resolve();
-          }
-        );
-      })
-      .catch(reject);
-  });
+  await adminDb.run(
+    `
+      INSERT INTO admin_users (username, password_hash)
+      VALUES (?, ?)
+      ON CONFLICT(username)
+      DO UPDATE SET password_hash = excluded.password_hash
+    `,
+    [username, password_hash]
+  );
+  console.log(`Admin user synced from env: ${username}`);
 }
 
 function getAdminByUsername(username) {
-  return new Promise((resolve, reject) => {
-    adminDb.get('SELECT * FROM admin_users WHERE username = ?', [username], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  return adminDb.get('SELECT * FROM admin_users WHERE username = ?', [username]);
 }
 
-function updateAdminPassword(username, password_hash) {
-  return new Promise((resolve, reject) => {
-    adminDb.run(
-      'UPDATE admin_users SET password_hash = ? WHERE username = ?',
-      [password_hash, username],
-      function(err) {
-        if (err) reject(err);
-        else resolve(this.changes);
-      }
-    );
-  });
+async function updateAdminPassword(username, password_hash) {
+  const { changes } = await adminDb.run('UPDATE admin_users SET password_hash = ? WHERE username = ?', [password_hash, username]);
+  return changes;
 }
 
 module.exports = {

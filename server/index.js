@@ -9,7 +9,6 @@ const fs = require('fs');
 const db = require('./db');
 const discordDb = require('./discordDb');
 const adminDb = require('./adminDb');
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const discord = require('./discordService');
@@ -295,7 +294,7 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isValid = await bcrypt.compare(password, admin.password_hash);
+    const isValid = await Bun.password.verify(password, admin.password_hash);
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -342,12 +341,12 @@ app.post('/api/admin/change-password', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Admin not found' });
     }
 
-    const isValid = await bcrypt.compare(currentPassword, admin.password_hash);
+    const isValid = await Bun.password.verify(currentPassword, admin.password_hash);
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid current password' });
     }
 
-    const newHash = await bcrypt.hash(newPassword, 12);
+    const newHash = await Bun.password.hash(newPassword, { algorithm: 'bcrypt', cost: 12 });
     await adminDb.updateAdminPassword(username, newHash);
     res.json({ success: true });
   } catch (error) {
@@ -1000,13 +999,7 @@ async function startServer() {
   return server;
 }
 
-if (require.main === module) {
-  startServer().catch((error) => {
-    console.error('Fatal startup error:', error);
-    process.exit(1);
-  });
-}
-
+// Run server/main.js (dev) or startprod.js, not this file: Bun would treat the exported `app` as a Bun.serve() config.
 module.exports = {
   app,
   startServer

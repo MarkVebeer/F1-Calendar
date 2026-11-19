@@ -620,13 +620,19 @@ function App() {
 
   if (isAdminView) {
     return (
-      <AdminDashboard onBack={() => { window.location.hash = '' }} />
+      <>
+        <AdminDashboard onBack={() => { window.location.hash = '' }} />
+        <footer className="footer"><BuildInfo /></footer>
+      </>
     )
   }
 
   if (isDiscordView) {
     return (
-      <DiscordDashboard onBack={() => { window.location.hash = '' }} />
+      <>
+        <DiscordDashboard onBack={() => { window.location.hash = '' }} />
+        <footer className="footer"><BuildInfo /></footer>
+      </>
     )
   }
 
@@ -912,6 +918,7 @@ function App() {
         <footer className="footer">
           <p>{grandPrixCount} Grand Prix • {races.length} events</p>
           {showOsmCredit && <p>Track data © OpenStreetMap contributors</p>}
+          <BuildInfo />
         </footer>
       </div>
 
@@ -927,6 +934,35 @@ function App() {
         ))}
       </div>
     </div>
+  )
+}
+
+// Set at build time by vite.config.js: build number (commit count), commit and repository.
+const BUILD_INFO = typeof __BUILD_INFO__ !== 'undefined' ? __BUILD_INFO__ : null
+
+// Which build this page came from, so you can tell after a deploy whether you see the new one.
+function BuildInfo() {
+  if (!BUILD_INFO || (!BUILD_INFO.sha && !BUILD_INFO.number)) return null
+
+  const shortSha = BUILD_INFO.sha ? BUILD_INFO.sha.slice(0, 7) : null
+  const label = BUILD_INFO.number ? `Build #${BUILD_INFO.number}` : 'Build'
+  const builtAt = new Date(BUILD_INFO.builtAt).toLocaleString()
+
+  return (
+    <p className="build-info" title={`Built ${builtAt}`}>
+      {label}
+      {shortSha && (
+        <>
+          {' · '}
+          {BUILD_INFO.repo ? (
+            <a href={`${BUILD_INFO.repo}/commit/${BUILD_INFO.sha}`} target="_blank" rel="noreferrer">{shortSha}</a>
+          ) : (
+            <code>{shortSha}</code>
+          )}
+        </>
+      )}
+      {BUILD_INFO.dev && ' · dev'}
+    </p>
   )
 }
 

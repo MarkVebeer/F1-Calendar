@@ -1108,6 +1108,29 @@ body {
   font-size: 0.85rem;
 }
 
+.build-info {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-info a,
+.build-info code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: inherit;
+}
+
+.build-info a {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.build-info a:hover {
+  opacity: 1;
+  text-decoration-style: solid;
+}
+
 /* Tablet - 640px and up */
 @media (min-width: 640px) {
   .app {

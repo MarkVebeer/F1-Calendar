@@ -53,8 +53,8 @@ async function pipeLines(stream, prefix, target) {
 }
 
 // Runs a command to completion, streaming its output. Throws with `step` in the message on failure.
-async function run(step, cmd, { cwd = ROOT, quiet = false } = {}) {
-  const proc = Bun.spawn(cmd, { cwd, env: { ...env, FORCE_COLOR: '0' }, stdout: 'pipe', stderr: 'pipe' });
+async function run(step, cmd, { cwd = ROOT, quiet = false, extraEnv = {} } = {}) {
+  const proc = Bun.spawn(cmd, { cwd, env: { ...env, FORCE_COLOR: '0', ...extraEnv }, stdout: 'pipe', stderr: 'pipe' });
   const chunks = [];
   const collect = async (stream, target) => {
     if (!quiet) return pipeLines(stream, `[${step}]`, target);
@@ -188,11 +188,32 @@ function scheduleRestart(sha) {
 
 const isReady = (sha) => SHA_PATTERN.test(sha || '') && fs.existsSync(path.join(releaseDir(sha), READY_MARKER));
 
+// The build number is the commit count, which a shallow clone (older installers) cannot give.
+async function ensureFullHistory() {
+  if ((await output([...GIT, 'rev-parse', '--is-shallow-repository'])) === 'true') {
+    log('fetching the full git history for build numbers');
+    await run('fetch', [...GIT, 'fetch', '--quiet', '--unshallow', 'origin'], { quiet: true });
+  }
+}
+
+// What the site footer shows: build number, commit and a link to it.
+async function buildInfoEnv(sha) {
+  await ensureFullHistory();
+  const remote = await output([...GIT, 'remote', 'get-url', 'origin']).catch(() => '');
+  return {
+    F1_BUILD_SHA: sha,
+    F1_BUILD_NUMBER: await output([...GIT, 'rev-list', '--count', sha]),
+    F1_BUILD_REPO: remote
+  };
+}
+
 async function buildRelease(sha) {
   if (isReady(sha)) {
     log(`${short(sha)} is already built`);
     return;
   }
+  const buildEnv = await buildInfoEnv(sha);
+  log(`building #${buildEnv.F1_BUILD_NUMBER} (${short(sha)})`);
   const dir = releaseDir(sha);
   const archive = path.join(RELEASES_DIR, `${sha}.tar`);
   fs.rmSync(dir, { recursive: true, force: true });
@@ -202,7 +223,7 @@ async function buildRelease(sha) {
     // A relative archive path keeps GNU tar from reading "C:" in Windows paths as a remote host.
     await run('extract', ['tar', '-xf', path.relative(dir, archive)], { cwd: dir, quiet: true });
     await run('install', [process.execPath, 'install', '--production', '--frozen-lockfile'], { cwd: dir });
-    await run('build', [process.execPath, 'run', 'build'], { cwd: dir });
+    await run('build', [process.execPath, 'run', 'build'], { cwd: dir, extraEnv: buildEnv });
     await run('test', [process.execPath, 'run', 'test'], { cwd: dir });
     fs.rmSync(path.join(dir, 'client', 'node_modules'), { recursive: true, force: true });
     fs.writeFileSync(path.join(dir, READY_MARKER), new Date().toISOString());
@@ -253,7 +274,7 @@ async function deployLatest(reason, retryFailed) {
   const started = Date.now();
   let sha;
   try {
-    await run('fetch', [...GIT, 'fetch', '--quiet', '--depth', '1', 'origin', BRANCH], { quiet: true });
+    await run('fetch', [...GIT, 'fetch', '--quiet', 'origin', BRANCH], { quiet: true });
     sha = await output([...GIT, 'rev-parse', 'FETCH_HEAD']);
     if (active && !active.exited && sha === active.sha) {
       return;

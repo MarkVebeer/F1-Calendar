@@ -206,6 +206,17 @@ Polling checks the branch every `DEPLOY_POLL_SECONDS` (120 by default). For depl
 
 GitHub's **Recent Deliveries** should show `202` for pushes and `200` for the ping. A `401` means the secrets differ.
 
+### Build status on GitHub
+
+Like Vercel, the supervisor can report every deploy back to GitHub: a status next to each commit (pending while it builds, a check mark once it is live, a cross if it failed) and a **production** deployment in the repository sidebar with a link to the site.
+
+1. On GitHub open **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. Under **Repository access** choose **Only select repositories** and pick this repository.
+3. Under **Permissions → Repository permissions** set **Commit statuses** and **Deployments** to **Read and write**. Nothing else is needed.
+4. Paste the token into **GitHub Status Token** (`GITHUB_STATUS_TOKEN`) in Pelican and restart the server once no deploy is running.
+
+The console then shows `github status on`, and the next push appears as **F1 Calendar** in the commit's checks. If a deploy fails, **Details** opens `<PUBLIC_URL>/__deploy/status`, which names the failed step; the full log stays in the Pelican console. Reporting never blocks or fails a deploy: when the token has expired or lacks a permission, the console shows `[github] ... answered 401` or `403` and the site deploys as usual.
+
 ### Rolling back
 
 Revert the commit and push. To go back without a commit, stop the server, write an older commit from `releases/` into `releases/current`, set **Automatic Deploys** to `false`, and start it again.

@@ -4,7 +4,7 @@
         "version": "PLCN_v3",
         "update_url": "https://raw.githubusercontent.com/MarkVebeer/F1-Calendar/main/pelican/egg-f1calendar.json"
     },
-    "exported_at": "2026-11-19T18:00:00+00:00",
+    "exported_at": "2026-11-19T20:00:00+00:00",
     "name": "F1 Calendar",
     "author": "github.com/MarkVebeer",
     "uuid": "9d56e5eb-3f2b-4571-ae6f-3e8bdc78d027",
@@ -269,6 +269,20 @@
                 "integer",
                 "min:0",
                 "max:86400"
+            ]
+        },
+        {
+            "sort": 18,
+            "name": "GitHub Status Token",
+            "description": "Fine-grained GitHub token for this repository only, with Commit statuses and Deployments set to Read and write. Shows build status next to each commit and a production deployment on GitHub. Leave empty to turn this off.",
+            "env_variable": "GITHUB_STATUS_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string",
+                "max:255"
             ]
         }
     ]

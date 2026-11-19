@@ -46,4 +46,35 @@ function upstreamHeaders(headers, clientIp) {
   return result;
 }
 
-module.exports = { verifySignature, pushedCommit, releasesToPrune, upstreamHeaders, SHA_PATTERN };
+// { owner, name } for a GitHub remote in https or ssh form, otherwise null.
+function parseGithubRepo(remote) {
+  const match = String(remote || '').trim().match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/);
+  return match ? { owner: match[1], name: match[2] } : null;
+}
+
+// GitHub rejects commit status descriptions longer than 140 characters.
+function statusText(text) {
+  const value = String(text || '').trim();
+  return value.length > 140 ? `${value.slice(0, 139)}…` : value;
+}
+
+const STEP_FAILURES = { install: 'Install failed', build: 'Build failed', test: 'Tests failed', health: 'Health check failed' };
+
+// A short reason for GitHub from the supervisor's error messages, such as "test failed (exit 1)".
+function failureSummary(error) {
+  const message = String(error?.message || error || '');
+  if (message.startsWith('health check failed')) return STEP_FAILURES.health;
+  const step = message.match(/^(\w+) failed/)?.[1];
+  return STEP_FAILURES[step] || 'Deploy failed';
+}
+
+module.exports = {
+  verifySignature,
+  pushedCommit,
+  releasesToPrune,
+  upstreamHeaders,
+  parseGithubRepo,
+  statusText,
+  failureSummary,
+  SHA_PATTERN
+};

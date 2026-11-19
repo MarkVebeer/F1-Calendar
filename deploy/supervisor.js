@@ -8,7 +8,8 @@
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
-const { verifySignature, pushedCommit, releasesToPrune, upstreamHeaders, SHA_PATTERN } = require('./lib');
+const { verifySignature, pushedCommit, releasesToPrune, upstreamHeaders, parseGithubRepo, failureSummary, SHA_PATTERN } = require('./lib');
+const { createReporter } = require('./github');
 
 const ROOT = path.resolve(__dirname, '..');
 const RELEASES_DIR = path.join(ROOT, 'releases');
@@ -34,7 +35,9 @@ const short = (sha) => (sha ? sha.slice(0, 7) : 'none');
 const releaseDir = (sha) => path.join(RELEASES_DIR, sha);
 
 let active = null; // { sha, port, proc, healthy, exited, stopping }
-const supervisorInfo = { version: 2, startedAt: new Date().toISOString(), startedFromCommit: null };
+const supervisorInfo = { version: 3, startedAt: new Date().toISOString(), startedFromCommit: null };
+// Commit statuses and deployments on GitHub; a no-op until main() sets it up with a token.
+let reporter = createReporter({});
 let shuttingDown = false;
 
 // ---------- child processes ----------
@@ -208,12 +211,13 @@ async function buildInfoEnv(sha) {
   };
 }
 
-async function buildRelease(sha) {
+// onStep(name) runs before install, build and test, for progress reporting.
+async function buildRelease(sha, { buildEnv = null, onStep = () => {} } = {}) {
   if (isReady(sha)) {
     log(`${short(sha)} is already built`);
     return;
   }
-  const buildEnv = await buildInfoEnv(sha);
+  buildEnv ||= await buildInfoEnv(sha);
   log(`building #${buildEnv.F1_BUILD_NUMBER} (${short(sha)})`);
   const dir = releaseDir(sha);
   const archive = path.join(RELEASES_DIR, `${sha}.tar`);
@@ -223,8 +227,11 @@ async function buildRelease(sha) {
     await run('archive', [...GIT, 'archive', '--format=tar', '-o', archive, sha], { quiet: true });
     // A relative archive path keeps GNU tar from reading "C:" in Windows paths as a remote host.
     await run('extract', ['tar', '-xf', path.relative(dir, archive)], { cwd: dir, quiet: true });
+    onStep('install');
     await run('install', [process.execPath, 'install', '--production', '--frozen-lockfile'], { cwd: dir });
+    onStep('build');
     await run('build', [process.execPath, 'run', 'build'], { cwd: dir, extraEnv: buildEnv });
+    onStep('test');
     await run('test', [process.execPath, 'run', 'test'], { cwd: dir });
     fs.rmSync(path.join(dir, 'client', 'node_modules'), { recursive: true, force: true });
     fs.writeFileSync(path.join(dir, READY_MARKER), JSON.stringify({ builtAt: new Date().toISOString(), number: Number(buildEnv.F1_BUILD_NUMBER) || null }));
@@ -251,6 +258,15 @@ function pruneReleases(keepShas) {
 let deploying = false;
 let deployAgain = false;
 let lastFailedSha = null;
+let lastDeploy = null; // shown on /__deploy/status, where GitHub's "Details" link points
+const queuedShas = new Set(); // pushes announced by webhook, reported as skipped if a newer one wins
+
+const STEP_LABELS = { install: 'Installing dependencies…', build: 'Building…', test: 'Running tests…', start: 'Starting…' };
+
+function trackStep(sha, step) {
+  if (lastDeploy?.commit === sha) lastDeploy.step = step;
+  reporter.step(sha, STEP_LABELS[step] || step);
+}
 
 function requestDeploy(reason, { retryFailed = false } = {}) {
   if (deploying) {
@@ -274,6 +290,7 @@ function requestDeploy(reason, { retryFailed = false } = {}) {
 async function deployLatest(reason, retryFailed) {
   const started = Date.now();
   let sha;
+  let reported = false;
   try {
     await run('fetch', [...GIT, 'fetch', '--quiet', 'origin', BRANCH], { quiet: true });
     sha = await output([...GIT, 'rev-parse', 'FETCH_HEAD']);
@@ -293,7 +310,20 @@ async function deployLatest(reason, retryFailed) {
     const supervisorChanged = await output([...GIT, 'diff', '--name-only', previousHead, sha, '--', 'deploy']);
     await run('checkout', [...GIT, 'reset', '--quiet', '--hard', sha], { quiet: true });
 
-    await buildRelease(sha);
+    const buildEnv = await buildInfoEnv(sha);
+    const number = Number(buildEnv.F1_BUILD_NUMBER) || null;
+    lastDeploy = { commit: sha, number, state: 'building', step: 'prepare', error: null, startedAt: new Date(started).toISOString(), finishedAt: null };
+    // This is the newest commit on the branch, so any other announced push is superseded.
+    queuedShas.delete(sha);
+    for (const skipped of queuedShas) {
+      reporter.skipped(skipped);
+    }
+    queuedShas.clear();
+    reporter.started(sha, number);
+    reported = true;
+
+    await buildRelease(sha, { buildEnv, onStep: (step) => trackStep(sha, step) });
+    trackStep(sha, 'start');
     const candidate = await startApp(sha);
     if (!(await waitHealthy(candidate))) {
       await stopApp(candidate);
@@ -302,13 +332,23 @@ async function deployLatest(reason, retryFailed) {
     await promote(candidate);
     lastFailedSha = null;
     pruneReleases([sha]);
-    log(`${short(sha)} is live (${Math.round((Date.now() - started) / 1000)}s)`);
+    const seconds = Math.round((Date.now() - started) / 1000);
+    Object.assign(lastDeploy, { state: 'live', step: null, finishedAt: new Date().toISOString() });
+    reporter.live(sha, number, seconds);
+    log(`${short(sha)} is live (${seconds}s)`);
     if (supervisorChanged) {
       log('this commit changed deploy/; restart the server in Pelican to run the new supervisor');
     }
   } catch (error) {
     lastFailedSha = sha || lastFailedSha;
     logError(`deploy of ${short(sha)} failed: ${error.message}. ${short(active?.sha)} stays live.`);
+    if (lastDeploy?.commit === sha) {
+      // The status page is public: keep the step and exit code, drop any command output after the colon.
+      Object.assign(lastDeploy, { state: 'failed', error: error.message.replace(/:[\s\S]*$/, ''), finishedAt: new Date().toISOString() });
+    }
+    if (reported) {
+      reporter.failed(sha, failureSummary(error));
+    }
   }
 }
 
@@ -356,6 +396,10 @@ async function handleWebhook(req) {
   if (!AUTO_DEPLOY) return text('Automatic deploys are off', 202);
 
   log(`webhook: push of ${short(sha)} to ${BRANCH}`);
+  if (sha !== active?.sha) {
+    queuedShas.add(sha);
+    reporter.queued(sha);
+  }
   requestDeploy('webhook', { retryFailed: true });
   return text('Deploy queued', 202);
 }
@@ -397,17 +441,29 @@ async function startInitialRelease() {
   const candidates = [...new Set([recorded, await output([...GIT, 'rev-parse', 'HEAD'])])].filter(Boolean);
 
   for (const sha of candidates) {
+    // A restart reuses a built release silently; only a real build (a fresh install) is reported.
+    const building = !isReady(sha);
+    const started = Date.now();
+    let number = null;
     try {
-      await buildRelease(sha);
+      if (building) {
+        const buildEnv = await buildInfoEnv(sha);
+        number = Number(buildEnv.F1_BUILD_NUMBER) || null;
+        reporter.started(sha, number);
+        await buildRelease(sha, { buildEnv, onStep: (step) => reporter.step(sha, STEP_LABELS[step]) });
+      }
       const app = await startApp(sha);
       if (await waitHealthy(app)) {
         await promote(app);
+        if (building) reporter.live(sha, number, Math.round((Date.now() - started) / 1000));
         return;
       }
       await stopApp(app);
       logError(`${short(sha)} did not become healthy`);
+      if (building) reporter.failed(sha, 'Health check failed');
     } catch (error) {
       logError(`could not start ${short(sha)}: ${error.message}`);
+      if (building) reporter.failed(sha, failureSummary(error));
     }
   }
   throw new Error('no release could be started');
@@ -436,7 +492,9 @@ async function handleStatus() {
     supervisor: supervisorInfo,
     live: active ? { commit: active.sha, healthy: active.healthy, ...release } : null,
     deploying,
+    lastDeploy,
     lastFailedCommit: lastFailedSha,
+    githubStatus: reporter.enabled,
     branch: BRANCH,
     autoDeploy: AUTO_DEPLOY,
     webhook: Boolean(SECRET),
@@ -448,6 +506,18 @@ async function handleStatus() {
 async function main() {
   fs.mkdirSync(RELEASES_DIR, { recursive: true });
   supervisorInfo.startedFromCommit = await output([...GIT, 'rev-parse', 'HEAD']).catch(() => null);
+  const githubToken = (env.GITHUB_STATUS_TOKEN || '').trim();
+  // The configured URL, before any url.insteadOf rewriting.
+  const githubRepo = parseGithubRepo(await output([...GIT, 'config', '--get', 'remote.origin.url']).catch(() => ''));
+  reporter = createReporter({
+    token: githubToken,
+    repo: githubRepo,
+    publicUrl: env.PUBLIC_URL,
+    apiUrl: env.GITHUB_API_URL || undefined
+  });
+  if (githubToken && !githubRepo) {
+    logError('GITHUB_STATUS_TOKEN is set, but origin is not a GitHub repository; GitHub status is off');
+  }
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
@@ -462,7 +532,7 @@ async function main() {
       return proxy(req, server);
     }
   });
-  log(`proxy listening on port ${PORT}, branch ${BRANCH}, auto deploy ${AUTO_DEPLOY ? 'on' : 'off'}, webhook ${SECRET ? 'on' : 'off'}, poll ${AUTO_DEPLOY && POLL_SECONDS > 0 ? `${POLL_SECONDS}s` : 'off'}`);
+  log(`proxy listening on port ${PORT}, branch ${BRANCH}, auto deploy ${AUTO_DEPLOY ? 'on' : 'off'}, webhook ${SECRET ? 'on' : 'off'}, poll ${AUTO_DEPLOY && POLL_SECONDS > 0 ? `${POLL_SECONDS}s` : 'off'}, github status ${reporter.enabled ? 'on' : 'off'}`);
 
   await startInitialRelease();
   console.log(`Server running on port ${PORT}`);

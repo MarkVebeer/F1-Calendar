@@ -70,44 +70,27 @@ const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
-const adminSessions = new Map();
+// Sessions live in the admin database, so logins survive restarts and zero-downtime deploys.
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-
-const discordSessions = new Map();
 const DISCORD_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 setInterval(() => {
-  const now = Date.now();
-
-  for (const [token, session] of adminSessions.entries()) {
-    if (now > session.expiresAt) {
-      adminSessions.delete(token);
-    }
-  }
-
-  for (const [token, session] of discordSessions.entries()) {
-    if (now > session.expiresAt) {
-      discordSessions.delete(token);
-    }
-  }
+  adminDb.deleteExpiredSessions().catch((error) => console.error('Failed to remove expired sessions:', error.message || error));
 }, 15 * 60 * 1000).unref();
 
-function createAdminSession(username) {
-  const token = crypto.randomBytes(24).toString('hex');
-  adminSessions.set(token, {
-    username,
-    expiresAt: Date.now() + ADMIN_SESSION_TTL_MS
-  });
-  return token;
-}
-
-function createDiscordSession(discordUser) {
-  const token = crypto.randomBytes(24).toString('hex');
-  discordSessions.set(token, {
-    discord_id: discordUser.discord_id,
-    expiresAt: Date.now() + DISCORD_SESSION_TTL_MS
-  });
-  return token;
+// Resolves the session for `kind`, or answers 401 and resolves null.
+async function loadSession(kind, token, res) {
+  const session = await adminDb.getSession(kind, token);
+  if (!session) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+  if (Date.now() > session.expiresAt) {
+    await adminDb.deleteSession(kind, token);
+    res.status(401).json({ error: 'Session expired' });
+    return null;
+  }
+  return session;
 }
 
 function getDiscordToken(req) {
@@ -117,18 +100,15 @@ function getDiscordToken(req) {
   return null;
 }
 
-function requireDiscordAuth(req, res, next) {
-  const token = getDiscordToken(req);
-  if (!token || !discordSessions.has(token)) {
-    return res.status(401).json({ error: 'Unauthorized' });
+async function requireDiscordAuth(req, res, next) {
+  try {
+    const session = await loadSession('discord', getDiscordToken(req), res);
+    if (!session) return;
+    req.discordUserId = session.subject;
+    return next();
+  } catch (error) {
+    return next(error);
   }
-  const session = discordSessions.get(token);
-  if (Date.now() > session.expiresAt) {
-    discordSessions.delete(token);
-    return res.status(401).json({ error: 'Session expired' });
-  }
-  req.discordUserId = session.discord_id;
-  return next();
 }
 
 async function getValidDiscordAccessToken(user) {
@@ -162,20 +142,15 @@ function getAdminToken(req) {
   return authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 }
 
-function requireAdmin(req, res, next) {
-  const token = getAdminToken(req);
-
-  if (!token || !adminSessions.has(token)) {
-    return res.status(401).json({ error: 'Unauthorized' });
+async function requireAdmin(req, res, next) {
+  try {
+    const session = await loadSession('admin', getAdminToken(req), res);
+    if (!session) return;
+    req.adminUsername = session.subject;
+    return next();
+  } catch (error) {
+    return next(error);
   }
-
-  const session = adminSessions.get(token);
-  if (Date.now() > session.expiresAt) {
-    adminSessions.delete(token);
-    return res.status(401).json({ error: 'Session expired' });
-  }
-
-  return next();
 }
 
 function formatNumber(value, digits = 1) {
@@ -299,7 +274,7 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = createAdminSession(username);
+    const token = await adminDb.createSession('admin', username, ADMIN_SESSION_TTL_MS);
     res.cookie('admin_session', token, {
       httpOnly: true,
       sameSite: 'lax',
@@ -317,13 +292,14 @@ app.get('/api/admin/me', requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/admin/logout', requireAdmin, async (req, res) => {
-  const token = getAdminToken(req);
-  if (token) {
-    adminSessions.delete(token);
+app.post('/api/admin/logout', requireAdmin, async (req, res, next) => {
+  try {
+    await adminDb.deleteSession('admin', getAdminToken(req));
+    res.clearCookie('admin_session');
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
   }
-  res.clearCookie('admin_session');
-  res.json({ success: true });
 });
 
 app.post('/api/admin/change-password', requireAdmin, async (req, res) => {
@@ -348,6 +324,8 @@ app.post('/api/admin/change-password', requireAdmin, async (req, res) => {
 
     const newHash = await Bun.password.hash(newPassword, { algorithm: 'bcrypt', cost: 12 });
     await adminDb.updateAdminPassword(username, newHash);
+    // A new password logs out every other browser; this one stays signed in.
+    await adminDb.deleteSessionsFor('admin', username, getAdminToken(req));
     res.json({ success: true });
   } catch (error) {
     console.error('Error changing password:', error);
@@ -443,7 +421,7 @@ app.get('/api/discord/callback', async (req, res) => {
       token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
     });
 
-    const sessionToken = createDiscordSession({ discord_id: user.id });
+    const sessionToken = await adminDb.createSession('discord', user.id, DISCORD_SESSION_TTL_MS);
     res.cookie('discord_session', sessionToken, {
       httpOnly: true,
       sameSite: 'lax',
@@ -458,13 +436,14 @@ app.get('/api/discord/callback', async (req, res) => {
   }
 });
 
-app.post('/api/discord/logout', requireDiscordAuth, async (req, res) => {
-  const token = getDiscordToken(req);
-  if (token) {
-    discordSessions.delete(token);
+app.post('/api/discord/logout', requireDiscordAuth, async (req, res, next) => {
+  try {
+    await adminDb.deleteSession('discord', getDiscordToken(req));
+    res.clearCookie('discord_session');
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
   }
-  res.clearCookie('discord_session');
-  res.json({ success: true });
 });
 
 app.get('/api/discord/me', requireDiscordAuth, async (req, res) => {

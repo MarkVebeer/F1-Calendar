@@ -7,3 +7,4 @@ client/dist/
 .env dev
 server/data/generated/
 /data/
+/releases/

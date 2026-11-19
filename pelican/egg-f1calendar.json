@@ -4,11 +4,11 @@
         "version": "PLCN_v3",
         "update_url": "https://raw.githubusercontent.com/MarkVebeer/F1-Calendar/main/pelican/egg-f1calendar.json"
     },
-    "exported_at": "2026-11-18T12:00:00+00:00",
+    "exported_at": "2026-11-19T12:00:00+00:00",
     "name": "F1 Calendar",
     "author": "github.com/MarkVebeer",
     "uuid": "9d56e5eb-3f2b-4571-ae6f-3e8bdc78d027",
-    "description": "F1 Calendar: a Formula 1 race calendar with a web frontend and Discord notifications. The site and the bot run in one Bun process on the server's allocation port. Put a reverse proxy with HTTPS in front of the allocation and set PUBLIC_URL to that address. To update, use Reinstall Server.",
+    "description": "F1 Calendar: a Formula 1 race calendar with a web frontend and Discord notifications, running on Bun. Pushes to the Git branch are deployed automatically with no downtime: the new commit is built and tested next to the live site and traffic switches over once it is healthy. Put a reverse proxy with HTTPS in front of the allocation and set PUBLIC_URL to that address.",
     "icon": null,
     "tags": [
         "f1",
@@ -22,7 +22,7 @@
     },
     "file_denylist": [],
     "startup_commands": {
-        "Default": "bun startprod.js"
+        "Default": "bun deploy/supervisor.js"
     },
     "config": {
         "files": "{}",
@@ -32,7 +32,7 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin/bash\n# F1 Calendar installation script\n# Server files: /mnt/server\nset -e\n\napt-get update -qq\napt-get install -y -qq git ca-certificates > /dev/null\n\nREPO=\"${GIT_REPO:-https://github.com/MarkVebeer/F1-Calendar.git}\"\nBRANCH=\"${GIT_BRANCH:-main}\"\nDATA=\"${DATA_DIR:-./data}\"\n\nmkdir -p /mnt/server\ncd /mnt/server\ngit config --global --add safe.directory /mnt/server\n\nif [ -d .git ]; then\n    echo \"Updating existing F1 Calendar checkout from ${REPO} (${BRANCH})\"\n    git remote set-url origin \"${REPO}\"\n    git fetch --depth 1 origin \"${BRANCH}\"\n    git reset --hard FETCH_HEAD\nelse\n    echo \"Cloning F1 Calendar from ${REPO} (${BRANCH})\"\n    rm -rf /tmp/f1-calendar\n    git clone --depth 1 --branch \"${BRANCH}\" \"${REPO}\" /tmp/f1-calendar\n    cp -a /tmp/f1-calendar/. /mnt/server/\n    rm -rf /tmp/f1-calendar\nfi\n\n# The data folder holds the SQLite databases. It is git ignored, so updates never touch it.\nmkdir -p \"${DATA}\"\nfor db in f1calendar*.db; do\n    if [ -e \"${db}\" ] && [ ! -e \"${DATA}/${db}\" ]; then\n        echo \"Moving ${db} into ${DATA}\"\n        mv \"${db}\" \"${DATA}/${db}\"\n    fi\ndone\n\n# Earlier releases installed with npm; start from a clean tree so no Node.js native modules linger.\nrm -rf node_modules client/node_modules package-lock.json client/package-lock.json\n\necho \"Installing dependencies\"\nbun install --production --frozen-lockfile\n\necho \"Building the frontend\"\nbun run build\nrm -rf client/node_modules\n\necho \"Checking the installation\"\nbun -e \"require('bun:sqlite'); require('@resvg/resvg-js')\"\ntest -f client/dist/index.html\n\necho \"-----------------------------------------\"\necho \"F1 Calendar installation completed\"\necho \"-----------------------------------------\"\n",
+            "script": "#!/bin/bash\n# F1 Calendar installation script\n# Server files: /mnt/server\n# This only fetches the code. deploy/supervisor.js builds, tests and starts a release on first start\n# and keeps it up to date afterwards, so a reinstall is only needed to reset the checkout.\nset -e\n\napt-get update -qq\napt-get install -y -qq git ca-certificates > /dev/null\n\nREPO=\"${GIT_REPO:-https://github.com/MarkVebeer/F1-Calendar.git}\"\nBRANCH=\"${GIT_BRANCH:-main}\"\nDATA=\"${DATA_DIR:-./data}\"\n\nmkdir -p /mnt/server\ncd /mnt/server\ngit config --global --add safe.directory /mnt/server\n\nif [ -d .git ]; then\n    echo \"Updating existing F1 Calendar checkout from ${REPO} (${BRANCH})\"\n    git remote set-url origin \"${REPO}\"\n    git fetch --depth 1 origin \"${BRANCH}\"\n    git reset --hard FETCH_HEAD\nelse\n    echo \"Cloning F1 Calendar from ${REPO} (${BRANCH})\"\n    rm -rf /tmp/f1-calendar\n    git clone --depth 1 --branch \"${BRANCH}\" \"${REPO}\" /tmp/f1-calendar\n    cp -a /tmp/f1-calendar/. /mnt/server/\n    rm -rf /tmp/f1-calendar\nfi\n\n# The data folder holds the SQLite databases. It is git ignored, so updates never touch it.\nmkdir -p \"${DATA}\"\nfor db in f1calendar*.db; do\n    if [ -e \"${db}\" ] && [ ! -e \"${DATA}/${db}\" ]; then\n        echo \"Moving ${db} into ${DATA}\"\n        mv \"${db}\" \"${DATA}/${db}\"\n    fi\ndone\n\n# Releases are built in releases/<commit>; dependencies and builds in the root are no longer used.\nrm -rf node_modules client/node_modules client/dist package-lock.json client/package-lock.json\n\ntest -f deploy/supervisor.js\n\necho \"-----------------------------------------\"\necho \"F1 Calendar installation completed\"\necho \"Press Start: the first start builds and tests the app, which takes a minute or two.\"\necho \"-----------------------------------------\"\n",
             "container": "oven/bun:1-debian",
             "entrypoint": "bash"
         }
@@ -218,7 +218,7 @@
         {
             "sort": 14,
             "name": "Git Branch",
-            "description": "Branch to install and update from.",
+            "description": "Branch to install from and deploy automatically on every push.",
             "env_variable": "GIT_BRANCH",
             "default_value": "main",
             "user_viewable": true,
@@ -226,6 +226,49 @@
             "rules": [
                 "required",
                 "string"
+            ]
+        },
+        {
+            "sort": 15,
+            "name": "Automatic Deploys",
+            "description": "Deploy every push to the Git branch without downtime. Set to false to stay on the installed commit.",
+            "env_variable": "AUTO_DEPLOY",
+            "default_value": "true",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "string",
+                "in:true,false"
+            ]
+        },
+        {
+            "sort": 16,
+            "name": "Deploy Webhook Secret",
+            "description": "Secret of the GitHub webhook pointing at PUBLIC_URL/__deploy/github, so pushes deploy within seconds. Leave empty to rely on polling only.",
+            "env_variable": "DEPLOY_WEBHOOK_SECRET",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "nullable",
+                "string",
+                "max:256"
+            ]
+        },
+        {
+            "sort": 17,
+            "name": "Deploy Poll Interval",
+            "description": "How often, in seconds, to check the branch for new commits in case a webhook is missed. 0 turns polling off.",
+            "env_variable": "DEPLOY_POLL_SECONDS",
+            "default_value": "120",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": [
+                "required",
+                "integer",
+                "min:0",
+                "max:86400"
             ]
         }
     ]

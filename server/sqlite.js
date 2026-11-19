@@ -3,6 +3,8 @@ const { Database } = require('bun:sqlite');
 // bun:sqlite is synchronous; the async wrappers keep every caller's await-based code unchanged.
 function openDatabase(filename) {
   const db = new Database(filename, { create: true });
+  // During a zero-downtime deploy two releases share these files for a few seconds; wait for locks instead of failing.
+  db.exec('PRAGMA busy_timeout = 5000');
 
   const prepare = (sql) => db.query(sql);
 

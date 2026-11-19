@@ -952,9 +952,16 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: 'Internal server error' });
 });
 
-async function initializeServices() {
+async function initCore() {
   await Promise.all([db.initDatabase(), adminDb.initAdminDatabase(), discordDb.initDiscordDatabase()]);
   console.log('Databases initialized');
+}
+
+// The calendar sync, the cron jobs and the Discord bot. Only one process may run these at a time.
+let jobsStarted = false;
+async function startJobs() {
+  if (jobsStarted) return;
+  jobsStarted = true;
 
   try {
     await syncCalendar();
@@ -974,18 +981,30 @@ async function initializeServices() {
 }
 
 async function startServer() {
-  await initializeServices();
+  await initCore();
+
+  // Under deploy/supervisor.js a new release serves traffic first and takes over the jobs
+  // only once the previous release has exited, so notifications are never sent twice.
+  const waitForJobs = process.env.F1_JOBS === 'wait';
+  if (!waitForJobs) {
+    await startJobs();
+  }
 
   const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 
+  let shuttingDown = false;
   const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`${signal} received, shutting down gracefully...`);
     server.close(() => {
       console.log('HTTP server closed');
       process.exit(0);
     });
+    // Keep-alive connections from the deploy proxy would otherwise hold close() open.
+    server.closeIdleConnections?.();
 
     setTimeout(() => {
       console.error('Forced shutdown after timeout');
@@ -995,6 +1014,15 @@ async function startServer() {
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  // Messages from deploy/supervisor.js. Signals are unreliable on Windows, so it uses IPC instead.
+  process.on('message', (message) => {
+    if (message?.type === 'shutdown') {
+      shutdown('Supervisor shutdown');
+    } else if (message?.type === 'start-jobs') {
+      startJobs().catch((error) => console.error('Failed to start background jobs:', error));
+    }
+  });
 
   return server;
 }

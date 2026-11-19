@@ -11,6 +11,7 @@ The website, API, background jobs and Discord bot all run in a single [Bun](http
 - [Quick start (local development)](#quick-start-local-development)
 - [Configuration](#configuration)
 - [Deploy on Pelican Panel](#deploy-on-pelican-panel)
+- [Automatic deploys](#automatic-deploys)
 - [Deploy on your own server](#deploy-on-your-own-server)
 - [Set up Discord](#set-up-discord)
 - [Set up weather forecasts](#set-up-weather-forecasts)
@@ -141,7 +142,7 @@ You rarely need these. On Pelican they go in a `.env` file.
 
 ## Deploy on Pelican Panel
 
-The repository ships an egg in [`pelican/egg-f1calendar.json`](pelican/egg-f1calendar.json). It uses the `ghcr.io/pelican-eggs/yolks:bun_latest` image and starts with `bun startprod.js`.
+The repository ships an egg in [`pelican/egg-f1calendar.json`](pelican/egg-f1calendar.json). It uses the `ghcr.io/pelican-eggs/yolks:bun_latest` image and starts with `bun deploy/supervisor.js`, which deploys every push to `GIT_BRANCH` without downtime. See [Automatic deploys](#automatic-deploys).
 
 **Coming from the Node.js egg?** Import the updated egg, then on each existing server open **Startup** and switch the Docker image to **Bun Latest** before you reinstall. Pelican does not change the image of existing servers on its own. Your databases carry over unchanged.
 
@@ -157,9 +158,9 @@ https://raw.githubusercontent.com/MarkVebeer/F1-Calendar/main/pelican/egg-f1cale
 
 1. Go to **Servers → Create** and choose the **F1 Calendar** egg.
 2. Assign one port. The app listens on it automatically.
-3. Allow at least 1 GB of RAM, because the installer builds the frontend.
+3. Allow at least 1.5 GB of RAM. During a deploy the live site, the frontend build and the new release run side by side.
 4. Fill in `PUBLIC_URL`, `ADMIN_USERNAME` and `ADMIN_PASSWORD`. Add the Discord and Meteoblue values if you want those features.
-5. Create the server. When the installer has finished, press **Start**. The console prints `Server running on port` when the app is ready.
+5. Create the server. When the installer has finished, press **Start**. The first start builds and tests the app, which takes a minute or two. The console prints `Server running on port` when the site is up.
 
 ### 3. Add a domain
 
@@ -167,9 +168,11 @@ Put a reverse proxy with HTTPS in front of the port and use that address as `PUB
 
 ### Updating
 
-Open the server in Pelican and use **Settings → Reinstall Server**, then start it again. The installer fetches the latest code from `GIT_BRANCH`, reinstalls dependencies and rebuilds the frontend. The `data` folder and `.env` are left alone, and any database migrations run on the next start.
+Push to `GIT_BRANCH`. The server picks it up on its own, see [Automatic deploys](#automatic-deploys).
 
-Reinstalling does not update the egg itself. If a release adds a new panel variable, update the egg in the admin area first.
+**Settings → Reinstall Server** is only needed to reset the checkout. It leaves `data`, `releases` and `.env` alone. It does not update the egg itself: if a release adds a new panel variable, update the egg in the admin area first.
+
+**Coming from an egg that started `bun startprod.js`?** Update the egg, then reinstall once so the startup command and the new variables apply.
 
 ### Do I need a `.env` file?
 
@@ -178,6 +181,40 @@ No. The **Startup** tab covers everything needed to run. Create a `.env` in the 
 ### Moving existing data
 
 Stop the server and copy `f1calendar.db`, `f1calendar-admin.db` and `f1calendar-discord.db` into the `data` folder. They are upgraded automatically on the next start.
+
+## Automatic deploys
+
+On Pelican, [`deploy/supervisor.js`](deploy/supervisor.js) owns the allocation port and forwards every request to the live release, which listens on a private loopback port. When a commit lands on `GIT_BRANCH`:
+
+1. The commit is unpacked into `releases/<commit>` and gets `bun install`, `bun run build` and `bun run test`.
+2. The new release starts next to the live one, with the same `data` folder.
+3. Once it answers on `/` and `/api/site-settings`, traffic switches to it.
+4. The old release finishes its open requests and exits. Only then does the new one start the calendar sync, the cron jobs and the Discord bot, so notifications are never sent twice.
+
+If any step fails, the live release keeps running and the console shows `[deploy] deploy of <commit> failed: ...`. The same commit is not retried by polling; push a fix, or redeliver the webhook to retry. The last three releases are kept.
+
+The console prefixes lines with `[deploy]`, `[install]`, `[build]`, `[test]` and `[app <commit>]`.
+
+### Trigger deploys from GitHub
+
+Polling checks the branch every `DEPLOY_POLL_SECONDS` (120 by default). For deploys within seconds, add a webhook:
+
+1. Pick a long random secret and set it as **Deploy Webhook Secret** (`DEPLOY_WEBHOOK_SECRET`) in Pelican, then restart the server.
+2. In GitHub open the repository's **Settings → Webhooks → Add webhook**.
+3. **Payload URL:** `<PUBLIC_URL>/__deploy/github`, for example `https://f1.example.com/__deploy/github`.
+4. **Content type:** `application/json`. **Secret:** the same value. **Events:** *Just the push event*.
+
+GitHub's **Recent Deliveries** should show `202` for pushes and `200` for the ping. A `401` means the secrets differ.
+
+### Rolling back
+
+Revert the commit and push. To go back without a commit, stop the server, write an older commit from `releases/` into `releases/current`, set **Automatic Deploys** to `false`, and start it again.
+
+### Things to keep in mind
+
+- For a few seconds both releases use the same databases, and the new one runs its migrations while the old one still serves. Keep migrations additive: add tables and columns, but do not rename or drop them in the same release that stops using them.
+- A change to `deploy/` itself is deployed for the app, but the running supervisor keeps its old code until the server restarts. The console says so.
+- Set **Automatic Deploys** to `false` to stay on the current commit.
 
 ## Deploy on your own server
 
@@ -341,6 +378,7 @@ All routes are under `/api`. Admin routes need an admin session, and Discord rou
 client/                 React frontend (Vite)
   src/App.jsx           pages, admin panel and Discord dashboard
   src/weekends.js       weekend timeline and season grouping
+deploy/                 zero-downtime deploy supervisor
 pelican/                Pelican egg
 scripts/                maintenance scripts
 server/
@@ -379,7 +417,9 @@ startprod.js            production entry point
 |---|---|
 | `Missing required environment variables` | Set the listed values. `PUBLIC_URL` covers `FRONTEND_URL` |
 | `Refusing to start in production with default admin credentials` | Use a username other than `admin` and a password other than `admin123` |
-| The site shows a blank page or a 404 in production | Run `bun run build`. On Pelican, reinstall the server and read the install log |
+| The site shows a blank page or a 404 in production | Run `bun run build`. On Pelican, read the `[build]` lines in the console |
+| A push was not deployed | Look for `[deploy]` lines in the console. A failed build or test keeps the old release live |
+| The site answers `The site is updating` | The first release is still building. Wait for `Server running on port` |
 | `Track layout unavailable` on a card | No valid line exists for that circuit yet. Check the log, or add an [override](#track-data-and-drawings) |
 | A weekend has no circuit name | The event could not be matched yet. A track sync is triggered automatically, at most every 6 hours |
 | Discord says the redirect URI is invalid | The redirect in the Developer Portal must match `<PUBLIC_URL>/api/discord/callback` exactly |

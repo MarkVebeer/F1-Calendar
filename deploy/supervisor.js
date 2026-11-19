@@ -34,6 +34,7 @@ const short = (sha) => (sha ? sha.slice(0, 7) : 'none');
 const releaseDir = (sha) => path.join(RELEASES_DIR, sha);
 
 let active = null; // { sha, port, proc, healthy, exited, stopping }
+const supervisorInfo = { version: 2, startedAt: new Date().toISOString(), startedFromCommit: null };
 let shuttingDown = false;
 
 // ---------- child processes ----------
@@ -226,7 +227,7 @@ async function buildRelease(sha) {
     await run('build', [process.execPath, 'run', 'build'], { cwd: dir, extraEnv: buildEnv });
     await run('test', [process.execPath, 'run', 'test'], { cwd: dir });
     fs.rmSync(path.join(dir, 'client', 'node_modules'), { recursive: true, force: true });
-    fs.writeFileSync(path.join(dir, READY_MARKER), new Date().toISOString());
+    fs.writeFileSync(path.join(dir, READY_MARKER), JSON.stringify({ builtAt: new Date().toISOString(), number: Number(buildEnv.F1_BUILD_NUMBER) || null }));
   } catch (error) {
     fs.rmSync(dir, { recursive: true, force: true });
     throw error;
@@ -421,8 +422,32 @@ async function shutdown(signal) {
   process.exit(0);
 }
 
+// Public, read-only: which supervisor code runs and what it serves. Commits are public in the footer anyway.
+async function handleStatus() {
+  const marker = active ? path.join(releaseDir(active.sha), READY_MARKER) : null;
+  let release = null;
+  try {
+    release = marker ? JSON.parse(fs.readFileSync(marker, 'utf8')) : null;
+  } catch {
+    release = { builtBy: 'an older supervisor' };
+  }
+  const shallow = await output([...GIT, 'rev-parse', '--is-shallow-repository']).catch(() => 'unknown');
+  return Response.json({
+    supervisor: supervisorInfo,
+    live: active ? { commit: active.sha, healthy: active.healthy, ...release } : null,
+    deploying,
+    lastFailedCommit: lastFailedSha,
+    branch: BRANCH,
+    autoDeploy: AUTO_DEPLOY,
+    webhook: Boolean(SECRET),
+    pollSeconds: AUTO_DEPLOY ? POLL_SECONDS : 0,
+    shallowClone: shallow === 'true'
+  }, { headers: { 'cache-control': 'no-store' } });
+}
+
 async function main() {
   fs.mkdirSync(RELEASES_DIR, { recursive: true });
+  supervisorInfo.startedFromCommit = await output([...GIT, 'rev-parse', 'HEAD']).catch(() => null);
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
@@ -431,7 +456,9 @@ async function main() {
     // Some admin actions (a forced sync, the weather debug) take longer than Bun's 10 second default.
     idleTimeout: 120,
     fetch(req, server) {
-      if (new URL(req.url).pathname === '/__deploy/github') return handleWebhook(req);
+      const { pathname } = new URL(req.url);
+      if (pathname === '/__deploy/github') return handleWebhook(req);
+      if (pathname === '/__deploy/status') return handleStatus();
       return proxy(req, server);
     }
   });

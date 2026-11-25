@@ -3,9 +3,17 @@ const db = require('./db');
 const discordDb = require('./discordDb');
 const { startDiscordPresence } = require('./discordPresence');
 const { sendChannelMessage } = require('./discordService');
+const { describeSession, weekendKey } = require('../client/src/sessions.js');
 
 const WORKER_INTERVAL_MS = 60 * 1000;
 const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || 'https://f1.markveber.hu').replace(/\/+$/, '');
+
+// The site opens the weekend sheet with this session highlighted, e.g. https://f1.example/#/2026/losail/fp1
+function sessionLink(race) {
+  const season = new Date(race.date).getUTCFullYear();
+  const session = describeSession(race);
+  return `${PUBLIC_APP_URL}/#/${weekendKey(season, race.circuit_id, race.name)}${session ? `/${session.slug}` : ''}`;
+}
 
 async function buildRaceEmbed(race, config, leadMinutes) {
   const start = new Date(race.date);
@@ -94,10 +102,10 @@ function getColorForType(type) {
   }
 }
 
-async function sendMessageWithRetry(channelId, embed, roleId, maxRetries = 3) {
+async function sendMessageWithRetry(channelId, embed, roleId, options = {}, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await sendChannelMessage(channelId, embed, roleId);
+      await sendChannelMessage(channelId, embed, roleId, options);
       return true;
     } catch (error) {
       console.error(`Attempt ${attempt}/${maxRetries} failed for channel ${channelId}:`, error.message);
@@ -167,7 +175,7 @@ async function runDiscordNotifications() {
           try {
             const embed = await buildRaceEmbed(race, config, notification.lead_minutes);
             const roleIdForType = config.role_map?.[race.type] || config.role_id || null;
-            await sendMessageWithRetry(config.channel_id, embed, roleIdForType);
+            await sendMessageWithRetry(config.channel_id, embed, roleIdForType, { websiteUrl: sessionLink(race) });
             await discordDb.logDiscordNotification({
               guild_id: config.guild_id,
               race_id: race.id,
@@ -202,4 +210,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { startDiscordWorker, runDiscordNotifications, buildRaceEmbed };
+module.exports = { startDiscordWorker, runDiscordNotifications, buildRaceEmbed, sessionLink };

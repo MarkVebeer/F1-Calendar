@@ -13,7 +13,7 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const discord = require('./discordService');
 const { startDiscordPresence } = require('./discordPresence');
-const { refreshTracks, startScheduler } = require('./scheduler');
+const { refreshTracks, refreshWeather, startScheduler } = require('./scheduler');
 const { findTrackFile, loadRegistry } = require('./tracks/registry');
 const { syncCalendar } = require('./icsParser');
 const { runDiscordNotifications } = require('./discordWorker');
@@ -231,6 +231,18 @@ app.get('/api/races', async (req, res) => {
   } catch (error) {
     console.error('Error fetching races:', error);
     res.status(500).json({ error: 'Failed to fetch races' });
+  }
+});
+
+// Stored daily forecasts per weekend ("2026/losail"); refreshed by a background job, never fetched here.
+app.get('/api/weather', async (req, res) => {
+  try {
+    const enabled = Boolean(process.env.METEOBLUE_API_KEY);
+    res.set('Cache-Control', 'public, max-age=600');
+    res.json({ enabled, forecasts: enabled ? await db.getWeatherForecasts() : {} });
+  } catch (error) {
+    console.error('Error fetching weather forecasts:', error);
+    res.status(500).json({ error: 'Failed to fetch weather' });
   }
 });
 
@@ -952,8 +964,9 @@ async function startJobs() {
   startScheduler();
   console.log('Scheduler started - will sync every hour');
 
-  // Runs in the background so a slow or unavailable data source cannot delay startup.
+  // Run in the background so a slow or unavailable data source cannot delay startup.
   refreshTracks();
+  refreshWeather();
 
   startDiscordPresence();
   console.log('Discord presence started');

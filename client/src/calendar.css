@@ -1,0 +1,1305 @@
+/* The Paddock Standard: the public calendar. Tokens first, both themes. */
+
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --radius-card: 16px;
+  --radius-inner: 10px;
+  --radius-pill: 999px;
+  --gutter: 16px;
+  --content: 1040px;
+
+  /* Dark theme (default) */
+  --bg: #0b0c0f;
+  --surface: #16181d;
+  --surface-2: #1e2128;
+  --line: #2a2e36;
+  --text: #ffffff;
+  --text-2: #9aa1ab;
+  --text-3: #868d97;
+  --accent: #c8232f;
+  --accent-text: #ff5a5f;
+  --on-accent: #ffffff;
+  --live: #4cc684;
+  --live-bg: rgba(76, 198, 132, 0.14);
+  --soon: #f2b33d;
+  --soon-bg: rgba(242, 179, 61, 0.14);
+  --focus: #7cb4ff;
+  --selection: rgba(200, 35, 47, 0.45);
+  --backdrop: rgba(4, 5, 7, 0.62);
+  --shadow-sheet: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --surface-2: #eceef2;
+    --line: #dfe2e7;
+    --text: #111317;
+    --text-2: #565d68;
+    --text-3: #646b76;
+    --accent-text: #c01f2c;
+    --live: #12763f;
+    --live-bg: rgba(18, 118, 63, 0.1);
+    --soon: #925400;
+    --soon-bg: rgba(146, 84, 0, 0.1);
+    --focus: #1f5fd1;
+    --selection: rgba(200, 35, 47, 0.2);
+    --backdrop: rgba(17, 19, 23, 0.38);
+    --shadow-sheet: 0 24px 64px rgba(17, 19, 23, 0.18);
+    --scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface-2: #eceef2;
+  --line: #dfe2e7;
+  --text: #111317;
+  --text-2: #565d68;
+  --text-3: #646b76;
+  --accent-text: #c01f2c;
+  --live: #12763f;
+  --live-bg: rgba(18, 118, 63, 0.1);
+  --soon: #925400;
+  --soon-bg: rgba(146, 84, 0, 0.1);
+  --focus: #1f5fd1;
+  --selection: rgba(200, 35, 47, 0.2);
+  --backdrop: rgba(17, 19, 23, 0.38);
+  --shadow-sheet: 0 24px 64px rgba(17, 19, 23, 0.18);
+  --scheme: light;
+}
+
+/* ---------- page and browser surfaces ---------- */
+
+html:has(body.cal-body) {
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--line) var(--bg);
+  color-scheme: var(--scheme);
+}
+
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+body.cal-body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  caret-color: var(--accent-text);
+}
+
+.cal ::selection {
+  background: var(--selection);
+  color: var(--text);
+}
+
+.cal button,
+.cal input,
+.cal select,
+.cal textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.cal a {
+  color: inherit;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.cal :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  z-index: 10;
+  background: var(--surface);
+  padding: 10px 14px;
+  border-radius: var(--radius-inner);
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.cal {
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: 0 var(--gutter) 32px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- header, notice, search ---------- */
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 8px;
+}
+
+.wordmark {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.wordmark span {
+  color: var(--accent-text);
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+  margin-right: -10px;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.icon-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 4px 0 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.notice strong {
+  color: var(--text);
+}
+
+.notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search {
+  padding: 4px 0 20px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 6px 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  color: var(--text-2);
+  transition: border-color 150ms var(--ease-out);
+}
+
+.field:focus-within {
+  border-color: var(--text-3);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+}
+
+.field input::placeholder {
+  color: var(--text-3);
+}
+
+.field input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.field-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.field-clear:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ---------- buttons, chips, tags ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-inner);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 150ms var(--ease-out);
+}
+
+/* Beats the ".cal button { color: inherit }" reset, so filled buttons keep white text on the accent. */
+.cal .button,
+.sheet .button {
+  color: var(--on-accent);
+}
+
+.button:hover {
+  filter: brightness(1.08);
+}
+
+.button--small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+}
+
+.text-button {
+  min-height: 36px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip--upcoming {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.chip--soon {
+  background: var(--soon-bg);
+  color: var(--soon);
+}
+
+.chip--live {
+  background: var(--live-bg);
+  color: var(--live);
+}
+
+.chip--tbc {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  50% { opacity: 0.35; }
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.tag--live {
+  border-color: transparent;
+  background: var(--live-bg);
+  color: var(--live);
+}
+
+.tag--muted {
+  color: var(--text-3);
+}
+
+.meta {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+/* ---------- featured weekend ---------- */
+
+.featured {
+  display: grid;
+  gap: 18px;
+  padding: 20px 18px 18px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+}
+
+.featured-title {
+  font-size: clamp(1.5rem, 1.15rem + 1.6vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  margin-bottom: 6px;
+}
+
+.featured-title a {
+  text-decoration: none;
+}
+
+.featured-title a:hover {
+  text-decoration: underline;
+}
+
+.featured-status {
+  display: grid;
+  gap: 10px;
+}
+
+.status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.status-session {
+  font-weight: 650;
+}
+
+.status-when {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.countdown {
+  display: flex;
+  gap: 8px;
+}
+
+.countdown-cell {
+  display: grid;
+  justify-items: center;
+  flex: 1;
+  max-width: 120px;
+  padding: 10px 4px 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-inner);
+}
+
+.countdown-value {
+  font-size: clamp(1.75rem, 1.35rem + 1.8vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.countdown-unit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.featured-track-link {
+  display: block;
+  color: var(--text);
+}
+
+.featured-track {
+  display: block;
+  width: 100%;
+  height: 190px;
+}
+
+/* ---------- track drawing ---------- */
+
+.track {
+  color: var(--text);
+}
+
+.track--missing,
+.track--loading {
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.track--missing {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-inner);
+}
+
+.track--draw .track-base {
+  opacity: 0.16;
+}
+
+/* --track-length is measured per path in TrackDrawing.jsx; until it is set, the line simply shows whole. */
+.track--draw .track-line[style] {
+  stroke-dasharray: var(--track-length);
+  stroke-dashoffset: var(--track-length);
+  animation: track-draw 1400ms var(--ease-out) 120ms forwards;
+}
+
+@keyframes track-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ---------- schedule ---------- */
+
+.schedule {
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.schedule-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tz-chip {
+  position: relative;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tz-chip:hover {
+  color: var(--text);
+  border-color: var(--text-3);
+}
+
+/* A 44px tap area around the compact chip. */
+.tz-chip::after {
+  content: "";
+  position: absolute;
+  inset: -6px -2px;
+}
+
+.schedule-note {
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+.day {
+  padding-top: 10px;
+}
+
+.day + .day {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+}
+
+.day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.day-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+.weather svg {
+  color: var(--text);
+}
+
+.weather-temp {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.weather-low {
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.weather-rain {
+  color: var(--text-2);
+}
+
+.sessions {
+  list-style: none;
+}
+
+.session {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+}
+
+.session[aria-current="true"] {
+  background: var(--surface-2);
+}
+
+.session-code {
+  justify-self: start;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.session[aria-current="true"] .session-code {
+  background: var(--surface);
+}
+
+.session-code:empty {
+  background: none;
+  padding: 0;
+}
+
+.session--next .session-name {
+  font-weight: 700;
+}
+
+.state--next {
+  color: var(--accent-text);
+}
+
+.session-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-weight: 550;
+}
+
+.session-time {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.session--done .session-name,
+.session--done .session-time {
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.session--live .session-code {
+  background: var(--live-bg);
+  color: var(--live);
+}
+
+.session--tbc .session-time {
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.state--live {
+  color: var(--live);
+}
+
+.state--soon {
+  color: var(--soon);
+}
+
+/* ---------- season list ---------- */
+
+.season {
+  margin-top: 36px;
+}
+
+.season-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+
+.season-list {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+/* Rows side by side in the two-column grid share one height. */
+.season-list > li {
+  display: flex;
+}
+
+.season-list > li > .row {
+  flex: 1;
+}
+
+.season-note {
+  margin: -4px 0 12px;
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 52px 1fr 56px 18px;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 12px 12px 10px;
+  background: var(--surface);
+  border-radius: var(--radius-inner);
+  text-decoration: none;
+  transition: background-color 150ms var(--ease-out);
+}
+
+.cal a.row {
+  text-decoration: none;
+}
+
+.row:hover {
+  background: var(--surface-2);
+}
+
+.row-date {
+  display: grid;
+  justify-items: center;
+  align-self: stretch;
+  align-content: center;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+  line-height: 1.15;
+}
+
+.row-month {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.row-days {
+  font-size: 0.9375rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.row-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.row-name {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.row-meta {
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+.row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.row-tags:empty {
+  display: none;
+}
+
+.row-track {
+  width: 56px;
+  height: 44px;
+  color: var(--text-2);
+}
+
+.row-track.track--missing {
+  font-size: 0;
+}
+
+.row-chevron {
+  color: var(--text-3);
+}
+
+.row--finished .row-name {
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.row--finished .row-month,
+.row--finished .row-days,
+.row--finished .row-meta {
+  color: var(--text-3);
+}
+
+/* Narrow phones: the whole row is the link, so the chevron gives its width back to the name. */
+@media (max-width: 480px) {
+  .row {
+    grid-template-columns: 52px 1fr 48px;
+    gap: 10px;
+  }
+
+  .row-chevron {
+    display: none;
+  }
+
+  .row-track {
+    width: 48px;
+  }
+}
+
+.row--finished .row-track {
+  color: var(--text-3);
+}
+
+/* ---------- states ---------- */
+
+.state-panel {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 24px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+}
+
+.state-panel h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.state-panel p {
+  color: var(--text-2);
+}
+
+.state-panel .button {
+  margin-top: 6px;
+}
+
+.skeleton {
+  display: grid;
+  gap: 8px;
+}
+
+.skeleton-card,
+.skeleton-row {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+}
+
+.skeleton-card {
+  height: 420px;
+}
+
+.skeleton-row {
+  height: 76px;
+  border-radius: var(--radius-inner);
+}
+
+/* ---------- footer ---------- */
+
+.cal-footer {
+  display: grid;
+  gap: 4px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+/* App.css dims .build-info with opacity for the old dashboards; here it keeps full secondary contrast. */
+.cal-footer .build-info {
+  margin: 0;
+  opacity: 1;
+  font-size: 0.8125rem;
+}
+
+.cal-footer .build-info code,
+.cal-footer .build-info a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---------- sheets (native dialog) ---------- */
+
+.sheet {
+  width: min(600px, calc(100vw - 2 * var(--gutter)));
+  max-width: none;
+  max-height: min(88vh, 860px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+  animation: sheet-in 260ms var(--ease-out);
+}
+
+.sheet::backdrop {
+  background: var(--backdrop);
+  animation: backdrop-in 200ms var(--ease-out);
+}
+
+.sheet.is-closing {
+  animation: sheet-out 170ms var(--ease-in) forwards;
+}
+
+.sheet.is-closing::backdrop {
+  animation: backdrop-out 170ms var(--ease-in) forwards;
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+}
+
+@keyframes sheet-out {
+  to { opacity: 0; transform: translateY(6px) scale(0.99); }
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+}
+
+@keyframes backdrop-out {
+  to { opacity: 0; }
+}
+
+.sheet button,
+.sheet input {
+  font: inherit;
+  color: inherit;
+}
+
+.sheet a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.sheet :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sheet ::selection {
+  background: var(--selection);
+}
+
+.sheet-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 10px 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin-bottom: 4px;
+}
+
+.sheet-title:focus {
+  outline: none;
+}
+
+.sheet-body {
+  display: grid;
+  gap: 18px;
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet-track {
+  display: block;
+  width: 100%;
+  height: 170px;
+  color: var(--text);
+}
+
+.sheet-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.sheet-foot a {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Phones: the sheet rises from the bottom edge. */
+@media (max-width: 640px) {
+  .sheet {
+    width: 100%;
+    max-height: 92vh;
+    margin: auto 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .sheet[open] {
+    animation-name: sheet-up;
+    animation-duration: 300ms;
+  }
+
+  .sheet.is-closing {
+    animation-name: sheet-down;
+  }
+
+  .sheet-head::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+
+  .sheet-head {
+    position: relative;
+    padding-top: 22px;
+  }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+}
+
+@keyframes sheet-down {
+  to { transform: translateY(100%); }
+}
+
+/* ---------- settings ---------- */
+
+.setting {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 0;
+}
+
+.setting + .setting {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.setting-title {
+  padding: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.setting-hint {
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.setting .button {
+  justify-self: start;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-inner);
+}
+
+.segment {
+  position: relative;
+}
+
+.segment input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment span {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.segment input:checked + span {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.segment input:focus-visible + span {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.zone-list {
+  display: grid;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+}
+
+.zone {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 0.9375rem;
+}
+
+.zone + .zone {
+  border-top: 1px solid var(--line);
+}
+
+.zone:hover {
+  background: var(--surface-2);
+}
+
+.zone input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+.zone-label {
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+/* ---------- wider screens ---------- */
+
+@media (min-width: 720px) {
+  :root {
+    --gutter: 24px;
+  }
+
+  body.cal-body {
+    font-size: 16px;
+  }
+
+  .cal-header {
+    padding: 20px 0 12px;
+  }
+
+  .featured {
+    padding: 28px;
+  }
+
+  .season-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 960px) {
+  .featured {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-areas:
+      "intro track"
+      "status track"
+      "schedule schedule";
+    column-gap: 40px;
+    row-gap: 22px;
+  }
+
+  .featured-intro { grid-area: intro; }
+  .featured-status { grid-area: status; align-self: start; }
+  .featured-track-link { grid-area: track; align-self: center; }
+  .featured > .schedule { grid-area: schedule; }
+
+  .featured-track {
+    height: 260px;
+  }
+
+  .featured > .schedule .day {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .featured > .schedule .day-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding-top: 10px;
+  }
+
+  /* One measure for the whole schedule (chip, dividers, rows), as in the weekend sheet,
+     so each time sits within a glance of its session name. */
+  .featured > .schedule {
+    max-width: 720px;
+  }
+}
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+
+  .track--draw .track-line[style] {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .sheet[open],
+  .sheet::backdrop,
+  .sheet.is-closing,
+  .sheet.is-closing::backdrop {
+    animation: none;
+  }
+
+  .icon-button,
+  .row,
+  .field,
+  .button {
+    transition: none;
+  }
+}

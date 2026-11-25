@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "sfmono-regular",
+        "createdAt": "2026-11-25T09:27:09.962Z",
+        "reason": "builder decision: the footer build hash is code and uses the ui-monospace stack recorded in DESIGN.md Typography (Label/Mono Font)"
+      }
+    ]
+  }
+}

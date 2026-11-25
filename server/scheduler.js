@@ -3,6 +3,18 @@ const { syncCalendar } = require('./icsParser');
 const { runDiscordNotifications } = require('./discordWorker');
 const { runWeatherNotifications, runRaceDayWeatherNotifications } = require('./weatherWorker');
 const { trackSync } = require('./tracks/trackSync');
+const { refreshWeatherForecasts } = require('./weatherForecasts');
+
+async function refreshWeather() {
+  try {
+    const result = await refreshWeatherForecasts();
+    if (result.saved !== undefined) {
+      console.log(`Weather forecasts refreshed: ${result.saved} of ${result.weekends} weekends`);
+    }
+  } catch (error) {
+    console.error('Weather forecast refresh failed:', error.message || error);
+  }
+}
 
 async function refreshTracks() {
   try {
@@ -30,6 +42,9 @@ function startScheduler() {
     }
   });
 
+  // Refresh the on-site weather forecasts every 3 hours
+  cron.schedule('20 */3 * * *', refreshWeather);
+
   // Run Discord notifications check every minute
   cron.schedule('* * * * *', async () => {
     try {
@@ -46,5 +61,6 @@ function startScheduler() {
 
 module.exports = {
   refreshTracks,
+  refreshWeather,
   startScheduler
 };

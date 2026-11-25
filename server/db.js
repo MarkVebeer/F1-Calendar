@@ -55,6 +55,17 @@ const migrations = [
       }
       await tx.addColumnIfMissing('custom_events', 'end_date', 'TEXT');
     }
+  },
+  {
+    // Daily forecasts per race weekend, refreshed by a background job and served from here.
+    id: 'races_002_weather_forecasts',
+    up: (tx) => tx.exec(`
+      CREATE TABLE IF NOT EXISTS weather_forecasts (
+        weekend_key TEXT PRIMARY KEY,
+        fetched_at TEXT NOT NULL,
+        days TEXT NOT NULL
+      );
+    `)
   }
 ];
 
@@ -63,11 +74,11 @@ function initDatabase() {
 }
 
 const EVENT_COLUMNS = `
-  SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, created_at, 'race' as source
+  SELECT id, name, location, city, circuit_name, circuit_id, lat, lon, timezone, date, end_date, type, raw_summary, created_at, 'race' as source
   FROM races
   {where}
   UNION ALL
-  SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, created_at, 'custom' as source
+  SELECT id, name, location, NULL as city, NULL as circuit_name, NULL as circuit_id, NULL as lat, NULL as lon, NULL as timezone, date, end_date, type, NULL as raw_summary, created_at, 'custom' as source
   FROM custom_events
   {where}
   ORDER BY date ASC
@@ -179,7 +190,39 @@ async function replaceRaces(races) {
   replaceRacesTx.immediate(races);
 }
 
+async function saveWeatherForecast(weekendKey, days) {
+  await db.run(
+    `INSERT INTO weather_forecasts (weekend_key, fetched_at, days) VALUES (?, ?, ?)
+     ON CONFLICT(weekend_key) DO UPDATE SET fetched_at = excluded.fetched_at, days = excluded.days`,
+    [weekendKey, new Date().toISOString(), JSON.stringify(days)]
+  );
+}
+
+// { "2026/losail": { fetchedAt, days: [...] } }
+async function getWeatherForecasts() {
+  const rows = await db.all('SELECT weekend_key, fetched_at, days FROM weather_forecasts');
+  const forecasts = {};
+  for (const row of rows) {
+    try {
+      forecasts[row.weekend_key] = { fetchedAt: row.fetched_at, days: JSON.parse(row.days) };
+    } catch {
+      // a damaged row is skipped; the next refresh rewrites it
+    }
+  }
+  return forecasts;
+}
+
+// Forecasts for weekends that ended more than a week ago are of no use to anyone.
+async function pruneWeatherForecasts(keepKeys) {
+  const keys = [...keepKeys];
+  const placeholders = keys.map(() => '?').join(', ');
+  await db.run(`DELETE FROM weather_forecasts WHERE weekend_key NOT IN (${placeholders})`, keys);
+}
+
 module.exports = {
+  saveWeatherForecast,
+  getWeatherForecasts,
+  pruneWeatherForecasts,
   initDatabase,
   getAllRaces,
   getAllEvents,

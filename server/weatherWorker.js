@@ -793,4 +793,14 @@ async function runRaceDayWeatherNotifications() {
   }
 }
 
-module.exports = { groupRacesByName, pickNextWeekend, runWeatherNotifications, runRaceDayWeatherNotifications, sendWeatherNotificationNow };
+module.exports = {
+  groupRacesByName,
+  pickNextWeekend,
+  runWeatherNotifications,
+  runRaceDayWeatherNotifications,
+  sendWeatherNotificationNow,
+  resolveEventTimeZone,
+  resolveWeatherLocation,
+  getDatePartsInTimeZone,
+  formatDateParts
+};

@@ -1,0 +1,781 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-25T09:26:48.419Z",
+  "title": "Design System: F1 Calendar",
+  "extensions": {
+    "colorMeta": {
+      "racing-red": {
+        "role": "primary",
+        "displayName": "Racing Red",
+        "purpose": "Accent fill in both themes: the Next chip, primary buttons, favicon tile, checked radio, selection tint.",
+        "canonical": "#c8232f",
+        "oklch": "oklch(54.0% 0.198 24.0)",
+        "tonalRamp": [
+          "#270000",
+          "#590000",
+          "#8c0000",
+          "#b3001d",
+          "#de3c41",
+          "#fb7570",
+          "#ffb1ab",
+          "#ffe5e2"
+        ]
+      },
+      "racing-red-text-dark": {
+        "role": "primary",
+        "displayName": "Racing Red Text (dark)",
+        "purpose": "Red as text on dark: wordmark second word, Next marker, row month, caret.",
+        "canonical": "#ff5a5f",
+        "oklch": "oklch(68.9% 0.200 22.4)",
+        "tonalRamp": [
+          "#270000",
+          "#5a0000",
+          "#8c0000",
+          "#b30022",
+          "#df3a45",
+          "#fc7473",
+          "#ffb1ad",
+          "#ffe5e3"
+        ]
+      },
+      "racing-red-text-light": {
+        "role": "primary",
+        "displayName": "Racing Red Text (light)",
+        "purpose": "Red as text on light, deepened for contrast.",
+        "canonical": "#c01f2c",
+        "oklch": "oklch(52.2% 0.194 24.0)",
+        "tonalRamp": [
+          "#260000",
+          "#580000",
+          "#8a0000",
+          "#b1011f",
+          "#dc3f43",
+          "#f97672",
+          "#ffb2ac",
+          "#ffe6e3"
+        ]
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "On Accent",
+        "purpose": "Text on Racing Red fills.",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "pit-lane-black": {
+        "role": "neutral",
+        "displayName": "Pit Lane Black",
+        "purpose": "Dark page background and theme-color.",
+        "canonical": "#0b0c0f",
+        "oklch": "oklch(15.5% 0.007 271.0)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232427",
+          "#3e4043",
+          "#5c5d61",
+          "#7f8084",
+          "#a3a4a8",
+          "#cacacd",
+          "#eeeeef"
+        ]
+      },
+      "garage-graphite": {
+        "role": "neutral",
+        "displayName": "Garage Graphite",
+        "purpose": "Dark card, row, field and sheet surface.",
+        "canonical": "#16181d",
+        "oklch": "oklch(20.9% 0.010 268.2)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222428",
+          "#3d4045",
+          "#5b5d64",
+          "#7d8087",
+          "#a2a4aa",
+          "#c9cace",
+          "#eeeef0"
+        ]
+      },
+      "raised-graphite": {
+        "role": "neutral",
+        "displayName": "Raised Graphite",
+        "purpose": "Dark raised layer: countdown cells, session codes, current row, hover fills.",
+        "canonical": "#1e2128",
+        "oklch": "oklch(24.8% 0.014 267.0)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#222429",
+          "#3c4047",
+          "#5a5e66",
+          "#7c8089",
+          "#a1a5ac",
+          "#c8cacf",
+          "#eeeef0"
+        ]
+      },
+      "grid-line": {
+        "role": "neutral",
+        "displayName": "Grid Line",
+        "purpose": "Dark hairline dividers and borders.",
+        "canonical": "#2a2e36",
+        "oklch": "oklch(30.1% 0.016 264.3)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#21242a",
+          "#3c4048",
+          "#595e67",
+          "#7b808a",
+          "#a0a5ad",
+          "#c8cad0",
+          "#edeef0"
+        ]
+      },
+      "timing-white": {
+        "role": "neutral",
+        "displayName": "Timing White",
+        "purpose": "Dark primary text, countdown numbers, circuit stroke.",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "telemetry-grey": {
+        "role": "neutral",
+        "displayName": "Telemetry Grey",
+        "purpose": "Dark secondary text and icons at rest.",
+        "canonical": "#9aa1ab",
+        "oklch": "oklch(70.7% 0.017 257.2)",
+        "tonalRamp": [
+          "#090b0e",
+          "#20242a",
+          "#3a4049",
+          "#585e67",
+          "#7a818a",
+          "#9fa5ad",
+          "#c7cbd0",
+          "#edeef1"
+        ]
+      },
+      "quiet-grey": {
+        "role": "neutral",
+        "displayName": "Quiet Grey",
+        "purpose": "Dark tertiary text: placeholders, finished items.",
+        "canonical": "#868d97",
+        "oklch": "oklch(64.1% 0.017 257.2)",
+        "tonalRamp": [
+          "#090b0f",
+          "#20242b",
+          "#3a4049",
+          "#585e67",
+          "#7a818b",
+          "#9fa5ae",
+          "#c7cbd0",
+          "#edeef1"
+        ]
+      },
+      "paddock-mist": {
+        "role": "neutral",
+        "displayName": "Paddock Mist",
+        "purpose": "Light page background and theme-color.",
+        "canonical": "#f3f4f6",
+        "oklch": "oklch(96.7% 0.003 264.5)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232425",
+          "#3f4041",
+          "#5d5e5f",
+          "#7f8082",
+          "#a4a4a6",
+          "#cacacb",
+          "#eeeeef"
+        ]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "purpose": "Light card, row, field and sheet surface.",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "pit-wall-grey": {
+        "role": "neutral",
+        "displayName": "Pit Wall Grey",
+        "purpose": "Light raised layer.",
+        "canonical": "#eceef2",
+        "oklch": "oklch(94.9% 0.006 264.5)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232426",
+          "#3e4043",
+          "#5c5e61",
+          "#7e8084",
+          "#a3a5a8",
+          "#c9cacc",
+          "#eeeeef"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "purpose": "Light dividers and borders.",
+        "canonical": "#dfe2e7",
+        "oklch": "oklch(91.2% 0.008 260.7)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222427",
+          "#3d4044",
+          "#5b5e62",
+          "#7e8085",
+          "#a2a5a9",
+          "#c9cacd",
+          "#eeeeef"
+        ]
+      },
+      "timing-ink": {
+        "role": "neutral",
+        "displayName": "Timing Ink",
+        "purpose": "Light primary text and circuit stroke.",
+        "canonical": "#111317",
+        "oklch": "oklch(18.6% 0.009 264.3)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222427",
+          "#3d4045",
+          "#5b5e63",
+          "#7d8086",
+          "#a2a5a9",
+          "#c9cacd",
+          "#eeeeef"
+        ]
+      },
+      "slate": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "purpose": "Light secondary text.",
+        "canonical": "#565d68",
+        "oklch": "oklch(47.6% 0.020 259.4)",
+        "tonalRamp": [
+          "#090b0f",
+          "#20242c",
+          "#3a404a",
+          "#575e69",
+          "#79818c",
+          "#9fa5af",
+          "#c7cbd1",
+          "#edeef1"
+        ]
+      },
+      "quiet-slate": {
+        "role": "neutral",
+        "displayName": "Quiet Slate",
+        "purpose": "Light tertiary text.",
+        "canonical": "#646b76",
+        "oklch": "oklch(52.6% 0.019 259.4)",
+        "tonalRamp": [
+          "#090b0f",
+          "#20242b",
+          "#3a404a",
+          "#575e69",
+          "#79818c",
+          "#9fa5af",
+          "#c7cbd1",
+          "#edeef1"
+        ]
+      },
+      "live-green-dark": {
+        "role": "secondary",
+        "displayName": "Live Green (dark)",
+        "purpose": "Live now on dark.",
+        "canonical": "#4cc684",
+        "oklch": "oklch(74.1% 0.146 156.3)",
+        "tonalRamp": [
+          "#001201",
+          "#003208",
+          "#00541a",
+          "#007438",
+          "#00995a",
+          "#5cbb85",
+          "#a4d9b7",
+          "#e0f4e7"
+        ]
+      },
+      "live-green-light": {
+        "role": "secondary",
+        "displayName": "Live Green (light)",
+        "purpose": "Live now on light.",
+        "canonical": "#12763f",
+        "oklch": "oklch(49.9% 0.122 152.8)",
+        "tonalRamp": [
+          "#001101",
+          "#003009",
+          "#00511c",
+          "#05703a",
+          "#3b955c",
+          "#70b786",
+          "#add7b8",
+          "#e3f3e7"
+        ]
+      },
+      "live-tint-dark": {
+        "role": "secondary",
+        "displayName": "Live Tint (dark)",
+        "purpose": "Background behind live chips, tags and code blocks on dark.",
+        "canonical": "rgba(76, 198, 132, 0.14)"
+      },
+      "live-tint-light": {
+        "role": "secondary",
+        "displayName": "Live Tint (light)",
+        "purpose": "Background behind live elements on light.",
+        "canonical": "rgba(18, 118, 63, 0.1)"
+      },
+      "amber-dark": {
+        "role": "tertiary",
+        "displayName": "Starting Amber (dark)",
+        "purpose": "Starting soon on dark.",
+        "canonical": "#f2b33d",
+        "oklch": "oklch(80.6% 0.147 79.0)",
+        "tonalRamp": [
+          "#1a0500",
+          "#401700",
+          "#672f00",
+          "#884f00",
+          "#ae7300",
+          "#ce9b3f",
+          "#e5c694",
+          "#f9edda"
+        ]
+      },
+      "amber-light": {
+        "role": "tertiary",
+        "displayName": "Starting Amber (light)",
+        "purpose": "Starting soon on light.",
+        "canonical": "#925400",
+        "oklch": "oklch(50.7% 0.115 63.4)",
+        "tonalRamp": [
+          "#1a0500",
+          "#401600",
+          "#682d00",
+          "#8a4c00",
+          "#b06f2b",
+          "#cf9763",
+          "#e6c3a4",
+          "#faece0"
+        ]
+      },
+      "amber-tint-dark": {
+        "role": "tertiary",
+        "displayName": "Amber Tint (dark)",
+        "purpose": "Background behind the Starting soon chip on dark.",
+        "canonical": "rgba(242, 179, 61, 0.14)"
+      },
+      "amber-tint-light": {
+        "role": "tertiary",
+        "displayName": "Amber Tint (light)",
+        "purpose": "Background behind the Starting soon chip on light.",
+        "canonical": "rgba(146, 84, 0, 0.1)"
+      },
+      "focus-blue-dark": {
+        "role": "neutral",
+        "displayName": "Focus Blue (dark)",
+        "purpose": "Focus-visible outline on dark only.",
+        "canonical": "#7cb4ff",
+        "oklch": "oklch(76.2% 0.124 256.0)",
+        "tonalRamp": [
+          "#000a23",
+          "#002251",
+          "#033e7f",
+          "#285da2",
+          "#4c81c9",
+          "#79a7e5",
+          "#b1cdf3",
+          "#e5f0ff"
+        ]
+      },
+      "focus-blue-light": {
+        "role": "neutral",
+        "displayName": "Focus Blue (light)",
+        "purpose": "Focus-visible outline on light only.",
+        "canonical": "#1f5fd1",
+        "oklch": "oklch(51.6% 0.188 261.0)",
+        "tonalRamp": [
+          "#00042f",
+          "#001669",
+          "#0030a0",
+          "#1354c5",
+          "#397aee",
+          "#6ba3ff",
+          "#a8ccff",
+          "#e1efff"
+        ]
+      }
+    },
+    "themes": {
+      "dark": {
+        "default": true,
+        "bg": "pit-lane-black",
+        "surface": "garage-graphite",
+        "surface2": "raised-graphite",
+        "line": "grid-line",
+        "text": "timing-white",
+        "text2": "telemetry-grey",
+        "text3": "quiet-grey",
+        "accent": "racing-red",
+        "accentText": "racing-red-text-dark",
+        "live": "live-green-dark",
+        "soon": "amber-dark",
+        "focus": "focus-blue-dark",
+        "selection": "rgba(200, 35, 47, 0.45)",
+        "backdrop": "rgba(4, 5, 7, 0.62)"
+      },
+      "light": {
+        "selectors": [
+          "@media (prefers-color-scheme: light) :root:not([data-theme=\"dark\"])",
+          ":root[data-theme=\"light\"]"
+        ],
+        "bg": "paddock-mist",
+        "surface": "paper-white",
+        "surface2": "pit-wall-grey",
+        "line": "hairline",
+        "text": "timing-ink",
+        "text2": "slate",
+        "text3": "quiet-slate",
+        "accent": "racing-red",
+        "accentText": "racing-red-text-light",
+        "live": "live-green-light",
+        "soon": "amber-light",
+        "focus": "focus-blue-light",
+        "selection": "rgba(200, 35, 47, 0.2)",
+        "backdrop": "rgba(17, 19, 23, 0.38)"
+      },
+      "switching": "System by default; a header switch and a System / Light / Dark setting store the choice in localStorage (f1-theme), applied as data-theme on <html> before first paint."
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Countdown numbers, zero-padded."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Grand Prix name on the featured card, balanced wrap."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Season headings and sheet titles."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "F1 Calendar in the header; second word in Racing Red Text."
+      },
+      "row-title": {
+        "displayName": "Row Title",
+        "purpose": "Weekend names in the season list; 550 and secondary once finished."
+      },
+      "time": {
+        "displayName": "Time",
+        "purpose": "Session start times; 500 and tertiary once done."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "15px on phones, 16px from 720px; whole calendar is tabular-nums."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Row meta, schedule notes, weather, footer."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase day headings; month labels use 11px with 0.06em tracking."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sheet-dark",
+        "value": "0 24px 64px rgba(0, 0, 0, 0.5)",
+        "purpose": "The open sheet in dark."
+      },
+      {
+        "name": "sheet-light",
+        "value": "0 24px 64px rgba(17, 19, 23, 0.18)",
+        "purpose": "The open sheet in light."
+      },
+      {
+        "name": "segment-selected",
+        "value": "0 1px 3px rgba(0, 0, 0, 0.18)",
+        "purpose": "Checked option in the theme segmented control."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrances, hover transitions, the circuit draw-in."
+      },
+      {
+        "name": "ease-in",
+        "value": "cubic-bezier(0.4, 0, 1, 1)",
+        "purpose": "Sheet and backdrop exits."
+      },
+      {
+        "name": "hover",
+        "value": "150ms ease-out",
+        "purpose": "Colour and background transitions on rows, icon buttons, fields, buttons (brightness 1.08)."
+      },
+      {
+        "name": "track-draw",
+        "value": "1400ms ease-out 120ms",
+        "purpose": "Featured circuit traces itself once over a 16% opacity base copy."
+      },
+      {
+        "name": "sheet-in",
+        "value": "260ms ease-out; translateY(8px) scale(0.985) to rest",
+        "purpose": "Desktop sheet entrance."
+      },
+      {
+        "name": "sheet-up",
+        "value": "300ms ease-out; translateY(100%) to rest",
+        "purpose": "Phone bottom sheet entrance (up to 640px)."
+      },
+      {
+        "name": "sheet-out",
+        "value": "170ms ease-in",
+        "purpose": "Sheet exit (down 6px and fade on desktop, slide down on phones)."
+      },
+      {
+        "name": "backdrop",
+        "value": "200ms ease-out in, 170ms ease-in out",
+        "purpose": "Backdrop fade with the sheet."
+      },
+      {
+        "name": "live-pulse",
+        "value": "1.6s ease-in-out infinite, to 0.35 opacity",
+        "purpose": "The live dot."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all of the above off",
+        "purpose": "prefers-reduced-motion: reduce removes animations and hover transitions; the circuit shows whole."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-narrow",
+        "value": "max-width: 480px",
+        "purpose": "Rows drop the chevron, thumbnail 48px."
+      },
+      {
+        "name": "phone",
+        "value": "max-width: 640px",
+        "purpose": "Sheet becomes a bottom sheet."
+      },
+      {
+        "name": "tablet",
+        "value": "min-width: 720px",
+        "purpose": "24px gutter, 16px body, two-column season list."
+      },
+      {
+        "name": "desktop",
+        "value": "min-width: 960px",
+        "purpose": "Featured card splits into text and circuit columns; the schedule keeps one 720px measure and each day gets a 200px heading column."
+      }
+    ],
+    "circuitDrawing": {
+      "stroke": "currentColor, no fill, round joins and caps",
+      "strokeRatio": {
+        "featured": 0.022,
+        "sheet": 0.022,
+        "rowThumbnail": 0.05
+      },
+      "fit": "tight viewBox around the path with 6% padding",
+      "heights": {
+        "featuredPhone": "190px",
+        "featuredDesktop": "260px",
+        "sheet": "170px",
+        "rowThumbnail": "56 x 44px (48px wide up to 480px)"
+      },
+      "missing": "dashed hairline box, 10px corners, \"Track layout unavailable\""
+    },
+    "icons": {
+      "grid": "24px",
+      "stroke": 1.75,
+      "caps": "round",
+      "joins": "round",
+      "color": "currentColor",
+      "defaultSize": "20px"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one red action in a panel: Try again, Clear search, Open the Discord dashboard.",
+      "html": "<button class=\"ds-btn-primary\">Try again</button>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-btn-primary{font-family:var(--font);font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:0;border-radius:var(--radius-inner);background:var(--accent);color:var(--on-accent);font-size:15px;font-weight:650;cursor:pointer;transition:filter 150ms var(--ease-out)} .ds-btn-primary:hover{filter:brightness(1.08)} .ds-btn-primary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "The quiet alternative beside a primary action.",
+      "html": "<button class=\"ds-btn-text\">Keep London</button>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-btn-text{font-family:var(--font);font-variant-numeric:tabular-nums;min-height:36px;padding:0 6px;border:0;background:transparent;color:var(--text-2);font-size:14px;text-decoration:underline;text-underline-offset:3px;cursor:pointer} .ds-btn-text:hover{color:var(--text)} .ds-btn-text:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "Header theme switch and settings, sheet close: 44px, transparent until hover.",
+      "html": "<button class=\"ds-icon-btn\" aria-label=\"Settings\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 7h10M18 7h2M4 17h4M12 17h8\"/><circle cx=\"16\" cy=\"7\" r=\"2\"/><circle cx=\"10\" cy=\"17\" r=\"2\"/></svg></button>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-icon-btn{display:inline-grid;place-items:center;width:44px;height:44px;border:0;border-radius:var(--radius-inner);background:transparent;color:var(--text-2);cursor:pointer;transition:background-color 150ms var(--ease-out),color 150ms var(--ease-out)} .ds-icon-btn:hover{background:var(--surface-2);color:var(--text)} .ds-icon-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Full-width search for Grand Prix, country, city or circuit.",
+      "html": "<label class=\"ds-field\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"6.5\"/><path d=\"m20 20-4.2-4.2\"/></svg><input type=\"search\" placeholder=\"Search Grand Prix, country, city or circuit\"></label>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-field{font-family:var(--font);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:10px;min-height:46px;padding:0 6px 0 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-inner);color:var(--text-2);transition:border-color 150ms var(--ease-out)} .ds-field:focus-within{border-color:var(--text-3)} .ds-field input{flex:1;min-width:0;height:44px;border:0;background:transparent;color:var(--text);font:inherit;font-size:16px;outline:none} .ds-field input::placeholder{color:var(--text-3)}"
+    },
+    {
+      "name": "Status Chips",
+      "kind": "chip",
+      "refersTo": "chip-next",
+      "description": "The featured card status: Next (red fill), Live now (green, pulsing dot), Starting soon (amber), Times TBC.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip ds-chip--next\">Next</span><span class=\"ds-chip ds-chip--live\"><span class=\"ds-dot\"></span>Live now</span><span class=\"ds-chip ds-chip--soon\">Starting soon</span><span class=\"ds-chip ds-chip--tbc\">Times TBC</span></div>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-chips{display:flex;flex-wrap:wrap;gap:8px} .ds-chip{font-family:var(--font);font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--radius-pill);font-size:13px;font-weight:700;white-space:nowrap} .ds-chip--next{background:var(--accent);color:var(--on-accent)} .ds-chip--live{background:var(--live-bg);color:var(--live)} .ds-chip--soon{background:var(--soon-bg);color:var(--soon)} .ds-chip--tbc{background:var(--surface-2);color:var(--text-2)} .ds-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:ds-pulse 1.6s ease-in-out infinite} @keyframes ds-pulse{50%{opacity:.35}} @media (prefers-reduced-motion:reduce){.ds-dot{animation:none}}"
+    },
+    {
+      "name": "Countdown",
+      "kind": "custom",
+      "refersTo": "countdown-cell",
+      "description": "Day, hour and minute cells on the featured card; tabular, zero-padded, never animated.",
+      "html": "<div class=\"ds-countdown\"><span class=\"ds-cell\"><span class=\"ds-value\">03</span><span class=\"ds-unit\">days</span></span><span class=\"ds-cell\"><span class=\"ds-value\">14</span><span class=\"ds-unit\">hrs</span></span><span class=\"ds-cell\"><span class=\"ds-value\">07</span><span class=\"ds-unit\">min</span></span></div>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-countdown{font-family:var(--font);font-variant-numeric:tabular-nums;display:flex;gap:8px;max-width:376px} .ds-cell{display:grid;justify-items:center;flex:1;max-width:120px;padding:10px 4px 8px;background:var(--surface-2);border-radius:var(--radius-inner);color:var(--text)} .ds-value{font-size:clamp(1.75rem,1.35rem + 1.8vw,2.5rem);font-weight:800;line-height:1.05;letter-spacing:-0.02em} .ds-unit{font-size:12px;font-weight:600;color:var(--text-2)}"
+    },
+    {
+      "name": "Season Row",
+      "kind": "card",
+      "refersTo": "season-row",
+      "description": "A whole-row link in the season list: date block, name, meta, tags, circuit thumbnail, chevron.",
+      "html": "<a class=\"ds-row\" href=\"#\"><span class=\"ds-date\"><span class=\"ds-month\">Nov</span><span class=\"ds-days\">28–30</span></span><span class=\"ds-body\"><span class=\"ds-name\">Qatar Grand Prix</span><span class=\"ds-meta\">Lusail International Circuit · Lusail, Qatar</span><span class=\"ds-tags\"><span class=\"ds-tag\">Sprint</span></span></span><svg class=\"ds-thumb\" viewBox=\"0 0 100 80\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 60 L20 20 Q24 10 34 14 L70 26 Q88 32 86 48 L82 64 Q78 72 66 70 L20 68 Q10 66 12 60Z\"/></svg><svg class=\"ds-chev\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 6 6 6-6 6\"/></svg></a>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-row{font-family:var(--font);font-variant-numeric:tabular-nums;display:grid;grid-template-columns:52px 1fr 56px 18px;align-items:center;gap:12px;min-height:72px;padding:12px 12px 12px 10px;background:var(--surface);border-radius:var(--radius-inner);color:var(--text);text-decoration:none;transition:background-color 150ms var(--ease-out)} .ds-row:hover{background:var(--surface-2)} .ds-row:focus-visible{outline:2px solid var(--focus);outline-offset:2px} .ds-date{display:grid;justify-items:center;align-self:stretch;align-content:center;padding-right:10px;border-right:1px solid var(--line);line-height:1.15} .ds-month{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-text)} .ds-days{font-size:15px;font-weight:750;white-space:nowrap} .ds-body{display:grid;gap:2px;min-width:0} .ds-name{font-size:15px;font-weight:650;line-height:1.3} .ds-meta{font-size:13px;color:var(--text-2)} .ds-tags{display:flex;gap:6px;margin-top:4px} .ds-tag{display:inline-flex;padding:1px 8px;border:1px solid var(--line);border-radius:var(--radius-pill);font-size:12px;font-weight:600;color:var(--text-2)} .ds-thumb{width:56px;height:44px;color:var(--text-2)} .ds-chev{color:var(--text-3)}"
+    },
+    {
+      "name": "Session Rows",
+      "kind": "custom",
+      "refersTo": "session-row",
+      "description": "One day of the weekend schedule: uppercase day heading with weather, then code (FP1/FP2/FP3/SQ only; empty for Qualifying, Race, Sprint), name with state marker, and time. The next session gets a bolder name and a Next label in accent text; a deep-linked session gets the raised fill. The schedule keeps a 720px measure on desktop.",
+      "html": "<section class=\"ds-day\"><div class=\"ds-day-head\"><h3 class=\"ds-day-title\">Sunday 30 Nov</h3><span class=\"ds-weather\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 3v1.5M12 19.5V21M5.6 5.6l1 1M17.4 17.4l1 1M3 12h1.5M19.5 12H21M5.6 18.4l1-1M17.4 6.6l1-1\"/></svg><b>27°</b> / 21°</span></div><ol class=\"ds-sessions\"><li class=\"ds-session ds-done\"><span class=\"ds-code\">FP3</span><span class=\"ds-sname\">Practice 3</span><span class=\"ds-time\">13:30</span></li><li class=\"ds-session ds-isnext\"><span class=\"ds-code\"></span><span class=\"ds-sname\">Race<span class=\"ds-next\">Next</span></span><span class=\"ds-time\">17:00</span></li></ol></section>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-day{font-family:var(--font);font-variant-numeric:tabular-nums;color:var(--text);font-size:15px;max-width:720px} .ds-day-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:28px} .ds-day-title{margin:0;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-2)} .ds-weather{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2)} .ds-weather svg,.ds-weather b{color:var(--text)} .ds-sessions{list-style:none;margin:0;padding:0} .ds-session{display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:10px;min-height:44px;padding:0 8px;margin:0 -8px;border-radius:8px} .ds-current{background:var(--surface-2)} .ds-code{justify-self:start;padding:2px 7px;border-radius:6px;background:var(--surface-2);font-size:12px;font-weight:700;color:var(--text-2)} .ds-current .ds-code{background:var(--surface)} .ds-code:empty{background:none;padding:0} .ds-isnext .ds-sname{font-weight:700} .ds-sname{display:flex;align-items:center;gap:8px;font-weight:550} .ds-next{font-size:12px;font-weight:700;color:var(--accent-text)} .ds-time{font-size:16px;font-weight:700} .ds-done .ds-sname,.ds-done .ds-time{color:var(--text-3);font-weight:500}"
+    },
+    {
+      "name": "Theme Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented-control",
+      "description": "System / Light / Dark in settings; the checked segment lifts onto the card surface.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\" aria-label=\"Theme\"><label><input type=\"radio\" name=\"ds-theme\" checked><span>System</span></label><label><input type=\"radio\" name=\"ds-theme\"><span>Light</span></label><label><input type=\"radio\" name=\"ds-theme\"><span>Dark</span></label></div>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-seg{font-family:var(--font);font-variant-numeric:tabular-nums;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:var(--surface-2);border-radius:var(--radius-inner);max-width:420px} .ds-seg label{position:relative} .ds-seg input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0} .ds-seg span{display:grid;place-items:center;min-height:38px;border-radius:8px;font-size:14px;font-weight:600;color:var(--text-2)} .ds-seg input:checked+span{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.18)} .ds-seg input:focus-visible+span{outline:2px solid var(--focus);outline-offset:1px}"
+    },
+    {
+      "name": "Header",
+      "kind": "nav",
+      "refersTo": "icon-button",
+      "description": "Wordmark with the second word in Racing Red Text, theme switch and settings on the right.",
+      "html": "<header class=\"ds-header\"><h1 class=\"ds-wordmark\">F1 <span>Calendar</span></h1><div class=\"ds-actions\"><button class=\"ds-hbtn\" aria-label=\"Switch to light theme\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4\"/></svg></button><button class=\"ds-hbtn\" aria-label=\"Settings\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 7h10M18 7h2M4 17h4M12 17h8\"/><circle cx=\"16\" cy=\"7\" r=\"2\"/><circle cx=\"10\" cy=\"17\" r=\"2\"/></svg></button></div></header>",
+      "css": ":host{--font:system-ui, -apple-system, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif;--ease-out:cubic-bezier(0.16,1,0.3,1);--radius-card:16px;--radius-inner:10px;--radius-pill:999px;--bg:#0b0c0f;--surface:#16181d;--surface-2:#1e2128;--line:#2a2e36;--text:#ffffff;--text-2:#9aa1ab;--text-3:#868d97;--accent:#c8232f;--accent-text:#ff5a5f;--on-accent:#ffffff;--live:#4cc684;--live-bg:rgba(76,198,132,0.14);--soon:#f2b33d;--soon-bg:rgba(242,179,61,0.14);--focus:#7cb4ff} .ds-header{font-family:var(--font);font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;background:var(--bg);color:var(--text)} .ds-wordmark{margin:0;font-size:20px;font-weight:800;letter-spacing:-0.01em;line-height:1} .ds-wordmark span{color:var(--accent-text)} .ds-actions{display:flex;gap:4px} .ds-hbtn{display:inline-grid;place-items:center;width:44px;height:44px;border:0;border-radius:var(--radius-inner);background:transparent;color:var(--text-2);cursor:pointer;transition:background-color 150ms var(--ease-out),color 150ms var(--ease-out)} .ds-hbtn:hover{background:var(--surface-2);color:var(--text)} .ds-hbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Paddock Standard",
+    "overview": "F1 Calendar looks the way a fan expects an F1 schedule product to look, and is built better than the ones they already use. It is the category standard, chosen on purpose and played straight: flat cards on a calm tinted ground, one racing-red accent of our own, big tabular numbers for the countdown, and the circuit drawing as the only illustration. There is no novelty world and no smuggled quirk. The ambition lives in the finish: even spacing, numbers that never jitter, 44px tap targets, short purposeful motion, and two themes that are equally considered.\n\nThe page answers one question first: what is next, and when, in my timezone. The featured card for the next weekend owns the top of the page (Grand Prix name, a status chip, a day/hour/minute countdown, the circuit drawing, and the weekend's sessions by day with weather). Everything else recedes: the season list is a compact dated list of rows, finished weekends stay in place and dim, and the weekend detail opens in a sheet (a centred modal on desktop, a bottom sheet on phones). Density is generous on the featured card and compact in the list.\n\nLight and dark are equals. The page follows the system theme by default; a header switch sets a remembered manual choice (stored before first paint, so there is no flash), and settings offer System, Light and Dark. Each theme has its own tinted neutrals and its own accent-text and state shades tuned for contrast; neither is a filter over the other.",
+    "keyCharacteristics": [
+      "The category standard, executed carefully: familiar layout, no gimmicks.",
+      "One focus per screen: the featured next-weekend card leads, the season list recedes.",
+      "Tabular figures everywhere, so times and the countdown never jitter.",
+      "The single-stroke circuit drawing is the only illustration, and the only thing that draws itself in.",
+      "Flat tonal layering; a shadow appears only on the open sheet and the selected segment.",
+      "First-class light and dark themes, system-driven with a remembered switch.",
+      "Motion is short and purposeful, or absent; all of it stops under reduced motion."
+    ],
+    "rules": [
+      {
+        "name": "The One Red Fill Rule",
+        "body": "Racing Red fills one thing per view: the Next chip on the featured card, or the primary action of a panel. Red as text marks identity (the wordmark) and \"what's next\" (the next session, the date blocks), never decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The State Colour Rule",
+        "body": "Green means live now, amber means starting soon, and red is never a state colour. Finished sessions and weekends are shown by dimming to tertiary text, not by colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Twin Theme Rule",
+        "body": "Every colour token has a value for both themes. Accent text, state colours, focus and the sheet shadow are re-tuned for light, not reused.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Time Rule",
+        "body": "The whole calendar and the sheet set `font-variant-numeric: tabular-nums`, so digits never shift while the countdown ticks and times line up in columns.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Chips, tags, buttons and countdown units are sentence or lower case. Uppercase is reserved for the day headings and the month in date blocks.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Cards and rows sit flat on the ground. Lift is a response to state (an open sheet, a selected segment), never decoration, and never a glow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do follow the system theme by default, offer a header switch and a System / Light / Dark setting, and apply the stored choice before first paint.",
+      "Do define every colour for both themes and re-tune accent text, state colours, focus and shadows for light.",
+      "Do keep the featured next-weekend card as the only focused card, with its status chip, countdown, circuit drawing and schedule.",
+      "Do set every time, date and countdown in tabular figures, and show each session time with its weekday and timezone.",
+      "Do use Racing Red (#c8232f) for fills and Racing Red Text for red words, never Formula 1's #E10600.",
+      "Do keep tap targets at 44px (extend a compact control's hit area when needed) and show focus with the 2px Focus Blue outline.",
+      "Do dim finished sessions and weekends in place rather than hiding or recolouring them.",
+      "Do keep motion short and purposeful, on transform and opacity, and turn all of it off under `prefers-reduced-motion`.",
+      "Do show weather only where it is real data, and label missing data plainly (\"Times TBC\", \"Track layout unavailable\")."
+    ],
+    "donts": [
+      "Don't imitate Formula 1's brand: no exact F1 red (#E10600), no F1 logo, no imitation of its proprietary typeface.",
+      "Don't use red for state: live is green, soon is amber, done is dimmed.",
+      "Don't add shadows to cards or rows, or any glow; depth is tonal.",
+      "Don't use gamer or neon styling: no glowing edges or neon accents.",
+      "Don't ship cheap animation: no bounces, no long fades, no decorative motion on every element, nothing that stutters on a phone.",
+      "Don't put an eyebrow or kicker above headings; the Grand Prix name leads its card.",
+      "Don't clutter the phone view: one focus, a clear list, and nothing that slows down the answer to \"what is next and when\"."
+    ]
+  }
+}

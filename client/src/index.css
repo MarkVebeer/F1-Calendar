@@ -21,6 +21,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Focus rings show only after keyboard navigation (data-input="keyboard", set in index.html). */
+html:not([data-input="keyboard"]) :focus {
+  outline: none !important;
+}
+
 img,
 svg {
   display: block;

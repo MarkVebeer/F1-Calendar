@@ -20,12 +20,20 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
   // While a sheet is open the page behind it stays put. Not with overflow: hidden on the page: on iPhone that
   // resets the page's scrolled state, and Safari drops the blur behind the status bar until the sheet is gone.
   // Instead, a swipe or wheel that is not scrolling the sheet's own content goes nowhere.
+  // "Own content" is any scroll area inside the sheet, nested ones too (the timezone list scrolls on its own).
   useEffect(() => {
     const dialog = ref.current
     if (!open || !dialog) return undefined
+    const scrollable = (value) => value === 'auto' || value === 'scroll'
     const scrollsInside = (event) => {
-      const area = event.target.closest?.('.sheet-body')
-      return Boolean(area && dialog.contains(area) && area.scrollHeight > area.clientHeight)
+      const horizontal = event.type === 'wheel' && Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      for (let el = event.target; el && el !== dialog && el.nodeType === 1; el = el.parentElement) {
+        const style = getComputedStyle(el)
+        if (horizontal ? scrollable(style.overflowX) && el.scrollWidth > el.clientWidth : scrollable(style.overflowY) && el.scrollHeight > el.clientHeight) {
+          return true
+        }
+      }
+      return false
     }
     const stop = (event) => {
       if (!scrollsInside(event)) event.preventDefault()

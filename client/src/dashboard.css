@@ -455,7 +455,7 @@ textarea.input {
 
 .unsaved-bar {
   position: sticky;
-  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 2;
   display: flex;
   flex-wrap: wrap;

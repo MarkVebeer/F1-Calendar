@@ -2,11 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="The Formula 1 schedule at a glance: every session in your timezone, with a countdown, circuit drawings and weekend weather." />
     <meta name="theme-color" content="#0b0c0f" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c8232f'/%3E%3Cpath d='M9 22V10h9M9 16h7M21 22V10l-2.5 2' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <!-- Installable app (home screen / desktop). On iPhone it runs full screen under a see-through status bar;
+         the page keeps clear of it with the safe-area padding in calendar.css. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="F1 Calendar" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>F1 Calendar</title>
     <style>
       /* The page's background before the stylesheet arrives, so the first frame is never white.

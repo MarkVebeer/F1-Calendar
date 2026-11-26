@@ -53,6 +53,14 @@ export function isTimeTbc(event) {
   return new Date(event.end_date).getTime() - new Date(event.date).getTime() >= ALL_DAY_MS
 }
 
+// A whole-day entry from the feed: no start time, stored as midnight UTC of its date (see server/icsParser.js).
+// Older rows saved at another midnight keep being shown as the moment they are.
+export function isAllDay(event) {
+  if (!event?.end_date) return false
+  const start = new Date(event.date).getTime()
+  return start % (24 * 60 * 60 * 1000) === 0 && new Date(event.end_date).getTime() - start >= ALL_DAY_MS
+}
+
 export function slugify(value) {
   return String(value || '')
     .toLowerCase()

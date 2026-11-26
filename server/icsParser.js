@@ -80,6 +80,15 @@ async function runCalendarSync() {
   }
 }
 
+// A whole-day entry (VALUE=DATE, how the feed writes sessions without a time yet) is a calendar date, not an
+// instant. node-ical makes it midnight in this server's own timezone; store it as midnight UTC instead, so the
+// stored value does not depend on where the server runs and the site can show the same date in every timezone.
+function calendarDate(value) {
+  const date = new Date(value);
+  if (!value?.dateOnly) return date;
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
 function processAndGroupEvents(events, registry) {
   const races = [];
   const groupedByDate = {};
@@ -94,8 +103,8 @@ function processAndGroupEvents(events, registry) {
         continue;
       }
       
-      const eventDate = event.start ? new Date(event.start) : new Date();
-      const eventEndDate = event.end ? new Date(event.end) : null;
+      const eventDate = event.start ? calendarDate(event.start) : new Date();
+      const eventEndDate = event.end ? calendarDate(event.end) : null;
       const dateKey = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
       
       if (!groupedByDate[dateKey]) {

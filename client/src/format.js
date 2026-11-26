@@ -41,6 +41,38 @@ export function dayKey(date, timeZone) {
   return `${parts.year}-${parts.month}-${parts.day}`
 }
 
+// The zone's offset from UTC at that moment, in ms (Budapest in winter: +3600000).
+function zoneOffsetMs(ms, timeZone) {
+  const parts = Object.fromEntries(
+    formatter(timeZone, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date(ms))
+      .map((p) => [p.type, Number(p.value)])
+  )
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
+  return asUtc - Math.floor(ms / 1000) * 1000
+}
+
+// A wall-clock time typed for a zone ("2027-03-14T15:00", e.g. from <input type="datetime-local">) as a Date.
+// The offset is looked up at the result again so a time near a DST change lands on the right side of it.
+export function zonedTimeToDate(localValue, timeZone) {
+  const match = String(localValue).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (!match) return new Date(NaN)
+  const [, y, mo, d, h, mi] = match.map(Number)
+  const wall = Date.UTC(y, mo - 1, d, h, mi)
+  const zone = safeTimeZone(timeZone)
+  const first = wall - zoneOffsetMs(wall, zone)
+  return new Date(wall - zoneOffsetMs(first, zone))
+}
+
+// Whole-day entries (sessions without a time yet) are stored as midnight UTC of their date. They name a date,
+// not a moment, so every timezone shows that same date: this returns noon of that date in the chosen zone,
+// which every day-based formatter here then reads as that date.
+export function allDayInZone(date, timeZone) {
+  const [y, m, d] = dayKey(date, 'UTC').split('-').map(Number)
+  const noonUtc = Date.UTC(y, m - 1, d, 12)
+  return new Date(noonUtc - zoneOffsetMs(noonUtc, safeTimeZone(timeZone)))
+}
+
 function shortZoneName(locale, timeZone, date) {
   try {
     const part = new Intl.DateTimeFormat(locale, { timeZone: safeTimeZone(timeZone), timeZoneName: 'short' })

@@ -5,8 +5,8 @@ import TrackDrawing from './TrackDrawing'
 import Sheet from './Sheet'
 import { useTheme } from './theme'
 import { buildWeekendTimeline, groupBySeason, isWeekendFinished, selectVisibleWeekends } from './weekends'
-import { describeSession, isTimeTbc, weekendKey } from './sessions'
-import { addDays, countdownParts, dateBlock, dayKey, formatDateRange, formatDay, formatTime, timeZoneCity, timeZoneLabel, titleCaseName } from './format'
+import { describeSession, isAllDay, isTimeTbc, weekendKey } from './sessions'
+import { addDays, allDayInZone, countdownParts, dateBlock, dayKey, formatDateRange, formatDay, formatTime, timeZoneCity, timeZoneLabel, titleCaseName } from './format'
 import { BellIcon, ChevronIcon, CloseIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon, WeatherIcon, describeWeather } from './icons'
 
 const DEFAULT_PAST_WEEKENDS_VISIBLE = 1
@@ -135,13 +135,33 @@ function locationLine(grandPrix) {
   return [grandPrix.circuit_name, unique.join(', ')].filter(Boolean).join(' · ')
 }
 
+// The moment that stands for an event's day in the chosen zone: a whole-day entry keeps its own date everywhere.
+function eventDay(event, timeZone) {
+  return isAllDay(event) ? allDayInZone(event.date, timeZone) : new Date(event.date)
+}
+
+// First and last moment of a weekend for showing its dates (the status logic keeps using startMs and endMs).
+function weekendDates(weekend, timeZone) {
+  const { events } = weekend.grandPrix
+  return {
+    start: Math.min(...events.map((event) => eventDay(event, timeZone).getTime())),
+    end: Math.max(...events.map((event) => (isAllDay(event) ? eventDay(event, timeZone).getTime() : sessionEndMs(event))))
+  }
+}
+
+function weekendRange(weekend, timeZone) {
+  const { start, end } = weekendDates(weekend, timeZone)
+  return formatDateRange(start, end, timeZone)
+}
+
 function groupByDay(events, timeZone) {
   const days = []
   for (const event of events) {
-    const key = dayKey(event.date, timeZone)
+    const date = eventDay(event, timeZone)
+    const key = dayKey(date, timeZone)
     let day = days.find((d) => d.key === key)
     if (!day) {
-      day = { key, label: formatDay(event.date, timeZone), events: [] }
+      day = { key, label: formatDay(date, timeZone), events: [] }
       days.push(day)
     }
     day.events.push(event)
@@ -243,6 +263,8 @@ function Schedule({ weekend, nowMs, timeZone, weather, highlight, headingLevel =
   const forecast = weather?.enabled ? weather.forecasts?.[weekend.linkKey] : null
   const circuitZone = weekend.grandPrix.timezone || timeZone
   const note = forecastNote(weekend, weather, nowMs, timeZone)
+  // The name in force on the weekend itself: a March race shows CEST even when looked at in November.
+  const zoneLabel = timeZoneLabel(timeZone, weekend.startMs)
   const Heading = `h${headingLevel}`
   const DayHeading = `h${headingLevel + 1}`
 
@@ -250,14 +272,14 @@ function Schedule({ weekend, nowMs, timeZone, weather, highlight, headingLevel =
     <div className="schedule">
       <div className="schedule-head">
         <Heading className="schedule-title">Schedule</Heading>
-        <button type="button" className="tz-chip" onClick={onOpenSettings} aria-label={`Times in ${timeZoneCity(timeZone)} time (${timeZoneLabel(timeZone)}). Change timezone`}>
-          {timeZoneLabel(timeZone)} · {timeZoneCity(timeZone)}
+        <button type="button" className="tz-chip" onClick={onOpenSettings} aria-label={`Times in ${timeZoneCity(timeZone)} time (${zoneLabel}). Change timezone`}>
+          {zoneLabel} · {timeZoneCity(timeZone)}
         </button>
       </div>
       {weekend.allTbc && <p className="schedule-note">Session times are not confirmed yet. Dates may still change.</p>}
       {note && <p className="schedule-note">{note}</p>}
       {days.map((day) => {
-        const weatherDay = forecast?.days?.find((d) => d.date === dayKey(day.events[0].date, circuitZone))
+        const weatherDay = forecast?.days?.find((d) => d.date === dayKey(eventDay(day.events[0], circuitZone), circuitZone))
         return (
           <section className="day" key={day.key} aria-label={day.label}>
             <div className="day-head">
@@ -290,7 +312,7 @@ function WeekendSheet({ weekend, highlight, nowMs, timeZone, weather, onClose, o
       <div className="sheet-head">
         <div>
           <h2 id="weekend-sheet-title" className="sheet-title" tabIndex={-1} data-autofocus>{weekend.title}</h2>
-          <p className="meta">{[formatDateRange(weekend.startMs, weekend.endMs, timeZone), weekend.isTesting ? 'Testing' : null, weekend.isSprint ? 'Sprint weekend' : null].filter(Boolean).join(' · ')}</p>
+          <p className="meta">{[weekendRange(weekend, timeZone), weekend.isTesting ? 'Testing' : null, weekend.isSprint ? 'Sprint weekend' : null].filter(Boolean).join(' · ')}</p>
           <p className="meta">{locationLine(grandPrix)}</p>
         </div>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
@@ -571,7 +593,7 @@ export default function Calendar() {
               <h2 id="featured-title" className="featured-title">
                 <a href={`#/${featured.linkKey}`}>{featured.title}</a>
               </h2>
-              <p className="meta">{[formatDateRange(featured.startMs, featured.endMs, timeZone), featured.isTesting ? 'Testing' : null, featured.isSprint ? 'Sprint weekend' : null].filter(Boolean).join(' · ')}</p>
+              <p className="meta">{[weekendRange(featured, timeZone), featured.isTesting ? 'Testing' : null, featured.isSprint ? 'Sprint weekend' : null].filter(Boolean).join(' · ')}</p>
               <p className="meta">{locationLine(featured.grandPrix)}</p>
             </div>
 
@@ -640,8 +662,9 @@ export default function Calendar() {
               {seasonWeekends.map((weekend) => {
                 const finished = isWeekendFinished(weekend, nowMs)
                 const live = weekend.grandPrix.events.some((event) => sessionStatus(event, nowMs) === 'live')
-                const block = dateBlock(weekend.startMs, weekend.endMs, timeZone)
-                const range = formatDateRange(weekend.startMs, weekend.endMs, timeZone)
+                const dates = weekendDates(weekend, timeZone)
+                const block = dateBlock(dates.start, dates.end, timeZone)
+                const range = formatDateRange(dates.start, dates.end, timeZone)
                 const place = [weekend.grandPrix.city !== weekend.grandPrix.location ? weekend.grandPrix.city : null, weekend.grandPrix.location].filter(Boolean).join(', ')
                 return (
                   <li key={weekend.key}>
@@ -706,7 +729,11 @@ export default function Calendar() {
             theme={preference}
             onThemeChange={setPreference}
             timeZone={timeZone}
-            onTimeZoneChange={changeTimeZone}
+            onTimeZoneChange={(zone) => {
+              // Picked on purpose: the "this device is set to…" notice has nothing left to ask.
+              changeTimeZone(zone)
+              dismissNotice()
+            }}
             onClose={() => setSettingsOpen(false)}
           />
         )}

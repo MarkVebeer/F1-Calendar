@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
 import { ConfirmSheet, DashShell, Field, StatusLine, errorText } from './dashboardUi'
 import { RefreshIcon, TrashIcon } from './icons'
-import { formatDay, formatTime, timeZoneLabel } from './format'
+import { formatDay, formatTime, timeZoneLabel, zonedTimeToDate } from './format'
 
 axios.defaults.withCredentials = true
 
@@ -10,7 +10,14 @@ axios.defaults.withCredentials = true
 const MAX_PAST_WEEKENDS_VISIBLE = 24
 const EMPTY_EVENT = { name: '', location: '', date: '', end_date: '', description: '' }
 
+// The timezone picked on the calendar (stored under the same key there), else this device's.
 function deviceZone() {
+  try {
+    const chosen = localStorage.getItem('f1-timezone')
+    if (chosen) return chosen
+  } catch {
+    // storage blocked: fall back to the device
+  }
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   } catch {
@@ -146,7 +153,10 @@ function CustomEvents() {
 
   const create = async (event) => {
     event.preventDefault()
-    if (form.end_date && form.date && new Date(form.end_date) < new Date(form.date)) {
+    // The inputs are read in the zone the hint names, not in the browser's own.
+    const start = zonedTimeToDate(form.date, zone)
+    const end = form.end_date ? zonedTimeToDate(form.end_date, zone) : null
+    if (end && end < start) {
       setStatus({ type: 'error', text: 'The end is before the start. Pick an end time after the start, or leave it empty.' })
       return
     }
@@ -156,8 +166,8 @@ function CustomEvents() {
       await axios.post('/api/admin/custom-events', {
         ...form,
         type: 'custom',
-        date: new Date(form.date).toISOString(),
-        end_date: form.end_date ? new Date(form.end_date).toISOString() : null
+        date: start.toISOString(),
+        end_date: end ? end.toISOString() : null
       })
       setForm(EMPTY_EVENT)
       setStatus({ type: 'ok', text: `“${form.name}” is on the calendar.` })

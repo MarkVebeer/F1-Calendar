@@ -1,6 +1,33 @@
 import { test } from 'bun:test'
 import assert from 'node:assert'
-import { formatDay, formatTime, dayKey, timeZoneLabel, formatDateRange, countdownParts, titleCaseName, timeZoneCity, dateBlock } from './format.js'
+import { formatDay, formatTime, dayKey, timeZoneLabel, formatDateRange, countdownParts, titleCaseName, timeZoneCity, dateBlock, allDayInZone, zonedTimeToDate } from './format.js'
+import { isAllDay } from './sessions.js'
+
+test('a whole-day entry shows its own date in every timezone', () => {
+  // Pre-season testing day with no time yet: stored as midnight UTC of 24 Feb.
+  for (const zone of ['UTC', 'America/Los_Angeles', 'Europe/Budapest', 'Asia/Tokyo', 'Pacific/Kiritimati', 'Pacific/Pago_Pago']) {
+    const day = allDayInZone('2027-02-24T00:00:00.000Z', zone)
+    assert.strictEqual(dayKey(day, zone), '2027-02-24', zone)
+    assert.strictEqual(formatDay(day, zone), 'Wed 24 Feb', zone)
+  }
+  assert.strictEqual(isAllDay({ date: '2027-02-24T00:00:00.000Z', end_date: '2027-02-25T00:00:00.000Z' }), true)
+  // A real session, and an old row saved at a server's local midnight, stay moments.
+  assert.strictEqual(isAllDay({ date: '2027-03-14T05:00:00.000Z', end_date: '2027-03-14T07:00:00.000Z' }), false)
+  assert.strictEqual(isAllDay({ date: '2027-02-23T23:00:00.000Z', end_date: '2027-02-24T23:00:00.000Z' }), false)
+})
+
+test('the zone name follows daylight saving on the given date', () => {
+  assert.strictEqual(timeZoneLabel('Europe/Budapest', '2027-06-06T13:00:00Z'), 'CEST')
+  assert.strictEqual(timeZoneLabel('Europe/Budapest', '2027-01-06T13:00:00Z'), 'CET')
+})
+
+test('a typed wall-clock time is read in the chosen zone', () => {
+  assert.strictEqual(zonedTimeToDate('2027-01-10T15:00', 'Europe/Budapest').toISOString(), '2027-01-10T14:00:00.000Z')
+  assert.strictEqual(zonedTimeToDate('2027-07-10T15:00', 'Europe/Budapest').toISOString(), '2027-07-10T13:00:00.000Z')
+  assert.strictEqual(zonedTimeToDate('2027-07-10T15:00', 'America/New_York').toISOString(), '2027-07-10T19:00:00.000Z')
+  // Just after the spring change in Budapest (28 Mar 2027, 02:00 -> 03:00).
+  assert.strictEqual(zonedTimeToDate('2027-03-28T03:30', 'Europe/Budapest').toISOString(), '2027-03-28T01:30:00.000Z')
+})
 
 test('session times read as weekday, date and time in the chosen zone', () => {
   assert.strictEqual(formatDay('2026-11-27T13:30:00Z', 'Europe/Budapest'), 'Fri 27 Nov')

@@ -1011,6 +1011,16 @@ body.cal-body {
   animation: backdrop-out 170ms var(--ease-in) forwards;
 }
 
+/* A sheet on its way out takes no taps. This also matters on iPhone: the browser tints the status bar from what
+   it finds at the top of the page and gives up (showing its own grey) while that is an animating element. The
+   backdrop counts as the dialog there; letting the check pass through to the still page keeps the tint right. */
+.sheet.is-closing,
+.sheet.is-closing::backdrop,
+.sheet.is-settling,
+.sheet.is-settling::backdrop {
+  pointer-events: none;
+}
+
 @keyframes sheet-in {
   from { opacity: 0; transform: translateY(8px) scale(0.985); }
 }

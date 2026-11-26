@@ -88,8 +88,23 @@ html:has(body.cal-body) {
   color-scheme: var(--scheme);
 }
 
-body.cal-body {
+/* The page colour is painted by body::before, not by body itself: the browser takes the colour behind the page
+   (on iPhone, the strip under the status bar at the top) from html and body, and body's would cover html's.
+   That colour lives on html alone, so it can be dimmed while a sheet is open (see html:root.sheet-open). */
+html:has(body.cal-body) {
+  background-color: var(--bg);
+}
+
+body.cal-body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: var(--bg);
+  pointer-events: none;
+}
+
+body.cal-body {
   color: var(--text);
   font-family: var(--font);
   font-size: 15px;
@@ -1044,8 +1059,9 @@ html.sheet-settling body::after {
 }
 
 /* With the page at its top, the strip under the iPhone status bar holds no page: the browser fills it with the
-   root's background, which body::after does not cover. Dim that colour by the same amount, so no undimmed band
-   shows above the page. (html:root outranks the :root rules in index.html.) */
+   page's background colour (html's; body paints none, see body.cal-body::before), which body::after does not
+   cover. Dim that colour by the same amount, so no undimmed band shows above the page.
+   (html:root outranks the :root rules in index.html.) */
 html:root {
   transition: background-color 170ms var(--ease-in);
 }

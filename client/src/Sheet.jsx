@@ -8,6 +8,13 @@ const CLOSE_VELOCITY = 0.5 // px per ms, a flick
 // Open sheets, the last one on top. While any is open the page is dimmed by its own layer (html.sheet-open,
 // see calendar.css) rather than the dialog's ::backdrop, which on iPhone turns the status bar into a solid bar.
 const openSheets = []
+
+// Closing a sheet goes back one history entry (its own, or the weekend's #/ address). The browser would then
+// jump to the scroll position it stored for that entry, which on iPhone is off by the toolbar's height when the
+// toolbar had collapsed, so the page hops after every close. The page never scrolls behind a sheet, so there is
+// nothing to restore: leave the scroll where it is. The mode belongs to each history entry, so it is set before
+// the sheets' entries exist.
+if (typeof history !== 'undefined' && 'scrollRestoration' in history) history.scrollRestoration = 'manual'
 const root = () => document.documentElement
 
 function syncPageDim() {

@@ -6,7 +6,8 @@ const CLOSE_DISTANCE = 0.25 // share of the sheet's height
 const CLOSE_VELOCITY = 0.5 // px per ms, a flick
 
 // Native <dialog>: focus moves in and stays in, Esc and the backdrop close it, focus returns to the opener.
-// On phones the sheet rises from the bottom edge and its header can be dragged down to close it.
+// On phones the sheet rises from the bottom edge and can be dragged down to close it: by its header, or anywhere
+// on its content once that is scrolled to the top.
 // The browser's back (button, edge swipe, mouse button) closes the sheet rather than leaving the page:
 // an open sheet adds a history entry of its own. A sheet whose opening already changes the address
 // (the weekend sheet) passes ownHistory={false} and handles back itself.
@@ -91,44 +92,27 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
     let drag = null
     let suppressClick = false
 
-    const onPointerDown = (event) => {
-      if (!event.isPrimary || event.button > 0) return
-      if (!window.matchMedia(PHONE_LAYOUT).matches) return
-      const head = event.target.closest('.sheet-head, [data-sheet-drag]')
-      if (!head || !dialog.contains(head)) return
-      drag = { id: event.pointerId, startY: event.clientY, dy: 0, active: false, samples: [[event.timeStamp, event.clientY]] }
-    }
+    // ----- one drag, whichever way it started -----
+    const begin = (y, t, source) => ({ source, originY: y, dy: 0, active: false, samples: [[t, y]] })
 
-    const onPointerMove = (event) => {
-      if (!drag || event.pointerId !== drag.id) return
-      const raw = event.clientY - drag.startY
-      if (!drag.active) {
-        if (raw < START_SLOP) {
-          if (raw < -START_SLOP) drag = null // an upward move is not a dismiss
-          return
-        }
-        drag.active = true
-        try {
-          dialog.setPointerCapture(event.pointerId)
-        } catch {
-          // The pointer is already gone; the drag still follows the events that arrive.
-        }
+    const follow = (current, y, t) => {
+      const raw = y - current.originY
+      if (!current.active) {
+        if (raw < START_SLOP) return false
+        current.active = true
         dialog.classList.add('is-dragging')
       }
-      event.preventDefault()
       // Past the top it resists, like a rubber band; downwards it follows the finger.
-      drag.dy = raw > 0 ? raw : raw / 4
-      drag.samples.push([event.timeStamp, event.clientY])
-      if (drag.samples.length > 5) drag.samples.shift()
+      current.dy = raw > 0 ? raw : raw / 4
+      current.samples.push([t, y])
+      if (current.samples.length > 5) current.samples.shift()
       const height = dialog.offsetHeight || 1
-      dialog.style.transform = `translateY(${drag.dy}px)`
-      dialog.style.setProperty('--sheet-backdrop', String(Math.max(0, 1 - Math.max(0, drag.dy) / height)))
+      dialog.style.transform = `translateY(${current.dy}px)`
+      dialog.style.setProperty('--sheet-backdrop', String(Math.max(0, 1 - Math.max(0, current.dy) / height)))
+      return true
     }
 
-    const finish = (event) => {
-      if (!drag || event.pointerId !== drag.id) return
-      const current = drag
-      drag = null
+    const release = (current, cancelled) => {
       if (!current.active) return
       suppressClick = true
       setTimeout(() => {
@@ -140,20 +124,91 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
       const [t1, y1] = current.samples[current.samples.length - 1]
       const velocity = t1 > t0 ? (y1 - y0) / (t1 - t0) : 0
       const height = dialog.offsetHeight || 1
-      const close = event.type !== 'pointercancel' && current.dy > 0 && (current.dy > height * CLOSE_DISTANCE || velocity > CLOSE_VELOCITY)
+      const close = !cancelled && current.dy > 0 && (current.dy > height * CLOSE_DISTANCE || velocity > CLOSE_VELOCITY)
 
+      dialog.classList.add('is-settling')
       if (close) {
         dialog.dataset.dragClosed = '1'
-        dialog.classList.add('is-settling')
         dialog.style.transform = 'translateY(100%)'
         dialog.style.setProperty('--sheet-backdrop', '0')
         afterTransition(dialog, () => onCloseRef.current())
       } else {
-        dialog.classList.add('is-settling')
         dialog.style.transform = ''
         dialog.style.removeProperty('--sheet-backdrop')
         afterTransition(dialog, () => dialog.classList.remove('is-settling'))
       }
+    }
+
+    const onPhone = () => window.matchMedia(PHONE_LAYOUT).matches
+    const headOf = (target) => {
+      const head = target.closest?.('.sheet-head, [data-sheet-drag]')
+      return head && dialog.contains(head) ? head : null
+    }
+
+    // ----- the header: pointer events (touch, pen or mouse); it never scrolls -----
+    const onPointerDown = (event) => {
+      if (!event.isPrimary || event.button > 0 || !onPhone() || !headOf(event.target)) return
+      drag = { ...begin(event.clientY, event.timeStamp, 'head'), id: event.pointerId }
+    }
+
+    const onPointerMove = (event) => {
+      if (drag?.source !== 'head' || event.pointerId !== drag.id) return
+      if (!drag.active && event.clientY - drag.originY < -START_SLOP) {
+        drag = null // an upward move is not a dismiss
+        return
+      }
+      const wasActive = drag.active
+      if (!follow(drag, event.clientY, event.timeStamp)) return
+      if (!wasActive) {
+        try {
+          dialog.setPointerCapture(event.pointerId)
+        } catch {
+          // The pointer is already gone; the drag still follows the events that arrive.
+        }
+      }
+      event.preventDefault()
+    }
+
+    const onPointerEnd = (event) => {
+      if (drag?.source !== 'head' || event.pointerId !== drag.id) return
+      const current = drag
+      drag = null
+      release(current, event.type === 'pointercancel')
+    }
+
+    // ----- the content: touch events, because it scrolls -----
+    // With the content at its top, a pull down moves the whole sheet (as in TikTok's comments); a push up scrolls.
+    // The choice is made on the first move: once the browser has started scrolling, the gesture is its own.
+    const onTouchStart = (event) => {
+      if (event.touches.length !== 1 || !onPhone() || headOf(event.target)) return
+      const body = event.target.closest?.('.sheet-body')
+      if (!body || !dialog.contains(body)) return
+      const touch = event.touches[0]
+      drag = { ...begin(touch.clientY, event.timeStamp, 'body'), body, decided: false, lastY: touch.clientY }
+    }
+
+    const onTouchMove = (event) => {
+      if (drag?.source !== 'body') return
+      const y = event.touches[0].clientY
+      if (!drag.decided) {
+        drag.decided = true
+        const pullingDown = y > drag.lastY
+        if (!pullingDown || drag.body.scrollTop > 0 || !event.cancelable) {
+          drag = null // the content scrolls as usual
+          return
+        }
+        drag.originY = drag.lastY // the sheet moves from where the pull began
+      }
+      drag.lastY = y
+      event.preventDefault()
+      follow(drag, y, event.timeStamp)
+    }
+
+    const onTouchEnd = (event) => {
+      if (drag?.source !== 'body') return
+      const current = drag
+      drag = null
+      release(current, event.type === 'touchcancel')
     }
 
     // A drag that ends over a button must not also press it.
@@ -164,17 +219,20 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
       }
     }
 
-    dialog.addEventListener('pointerdown', onPointerDown)
-    dialog.addEventListener('pointermove', onPointerMove)
-    dialog.addEventListener('pointerup', finish)
-    dialog.addEventListener('pointercancel', finish)
-    dialog.addEventListener('click', onClickCapture, true)
+    const listeners = [
+      ['pointerdown', onPointerDown],
+      ['pointermove', onPointerMove],
+      ['pointerup', onPointerEnd],
+      ['pointercancel', onPointerEnd],
+      ['touchstart', onTouchStart, { passive: true }],
+      ['touchmove', onTouchMove, { passive: false }],
+      ['touchend', onTouchEnd],
+      ['touchcancel', onTouchEnd],
+      ['click', onClickCapture, true]
+    ]
+    for (const [type, handler, options] of listeners) dialog.addEventListener(type, handler, options)
     return () => {
-      dialog.removeEventListener('pointerdown', onPointerDown)
-      dialog.removeEventListener('pointermove', onPointerMove)
-      dialog.removeEventListener('pointerup', finish)
-      dialog.removeEventListener('pointercancel', finish)
-      dialog.removeEventListener('click', onClickCapture, true)
+      for (const [type, handler, options] of listeners) dialog.removeEventListener(type, handler, options)
     }
   }, [])
 

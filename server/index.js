@@ -15,7 +15,7 @@ const discord = require('./discordService');
 const { startDiscordPresence } = require('./discordPresence');
 const { refreshTracks, refreshWeather, startScheduler } = require('./scheduler');
 const { findTrackFile, loadRegistry } = require('./tracks/registry');
-const { syncCalendar } = require('./icsParser');
+const { syncCalendar, getSyncStatus } = require('./icsParser');
 const { runDiscordNotifications } = require('./discordWorker');
 const { searchLocation, fetchBasicDayForecast, pickDayForecast, buildMeteogramImageUrl } = require('./meteoblueService');
 
@@ -301,7 +301,7 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 app.get('/api/admin/me', requireAdmin, async (req, res) => {
-  res.json({ success: true });
+  res.json({ success: true, username: req.adminUsername });
 });
 
 app.post('/api/admin/logout', requireAdmin, async (req, res, next) => {
@@ -393,13 +393,23 @@ app.delete('/api/admin/custom-events/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// When the calendar last synced, whether it worked, and the error if it did not.
+app.get('/api/admin/sync-status', requireAdmin, async (req, res) => {
+  try {
+    res.json({ status: await getSyncStatus() });
+  } catch (error) {
+    console.error('Error reading sync status:', error);
+    res.status(500).json({ error: 'Failed to read sync status' });
+  }
+});
+
 app.post('/api/admin/sync', requireAdmin, async (req, res) => {
   try {
     await syncCalendar();
-    res.json({ message: 'Calendar synced successfully' });
+    res.json({ message: 'Calendar synced successfully', status: await getSyncStatus() });
   } catch (error) {
     console.error('Error syncing calendar:', error);
-    res.status(500).json({ error: 'Failed to sync calendar' });
+    res.status(500).json({ error: error.message || 'Failed to sync calendar', status: await getSyncStatus() });
   }
 });
 
@@ -505,7 +515,10 @@ app.get('/api/discord/admin-guilds', requireDiscordAuth, async (req, res) => {
       })
     );
     
-    // Csak azokat az szervereket adjuk vissza, ahol a bot is benne van
+    // By default only servers that already have the bot; ?include=all also lists the ones to invite it to.
+    if (req.query.include === 'all') {
+      return res.json(guildWithBotCheck);
+    }
     const activeGuilds = guildWithBotCheck.filter(guild => guild.botInGuild);
     
     res.json(activeGuilds);
@@ -624,8 +637,38 @@ app.post('/api/discord/weather-config', requireDiscordAuth, async (req, res) => 
 });
 
 app.get('/api/discord/invite-url', (req, res) => {
-  const url = discord.buildBotInviteUrl();
+  // With ?guild_id the Discord invite screen opens with that server already chosen.
+  const guildId = /^\d{5,25}$/.test(String(req.query.guild_id || '')) ? String(req.query.guild_id) : undefined;
+  const url = discord.buildBotInviteUrl(guildId);
   res.json({ url });
+});
+
+// What a reminder will look like, built by the bot's own embed code from the next real session; nothing is sent.
+app.post('/api/discord/preview', requireDiscordAuth, async (req, res) => {
+  try {
+    const { lead_minutes: leadMinutes = 60, event_types: eventTypes, timezone, role_map: roleMap = {}, role_id: roleId } = req.body || {};
+    const lead = Math.max(0, Math.min(1440, Number(leadMinutes) || 0));
+    const types = Array.isArray(eventTypes) && eventTypes.length ? eventTypes : ['race', 'practice', 'qualifying', 'sprint', 'custom'];
+    const upcoming = await db.getUpcomingEvents(24 * 60);
+    const race = upcoming.find((event) => types.includes(event.type) && new Date(event.date).getTime() > Date.now());
+    if (!race) {
+      return res.json({ race: null });
+    }
+
+    const { buildRaceEmbed, sessionLink } = require('./discordWorker');
+    const embed = await buildRaceEmbed(race, { timezone: timezone || 'UTC' }, lead);
+    const mentionRoleId = (roleMap && roleMap[race.type]) || roleId || null;
+    res.json({
+      race: { name: race.name, type: race.type, date: race.date },
+      content: mentionRoleId ? embed.description : null,
+      mentionRoleId,
+      embed,
+      button: { label: discord.websiteButtonLabel(), url: sessionLink(race) }
+    });
+  } catch (error) {
+    console.error('Failed to build message preview:', error.message || error);
+    res.status(500).json({ error: 'Failed to build the preview' });
+  }
 });
 
 app.post('/api/sync', requireAdmin, async (req, res) => {

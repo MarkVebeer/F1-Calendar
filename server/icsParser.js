@@ -8,8 +8,42 @@ const { requestSyncForUnknownEvents } = require('./tracks/trackSync');
 
 const ICS_URL = 'https://ics.ecal.com/ecal-sub/697a869dcce5a200022989fc/Formula%201.ics';
 const ICS_TIMEOUT_MS = 30000;
+const SYNC_STATUS_KEY = 'calendar_sync_status';
+
+// The admin panel shows when the calendar last synced and whether it worked; it never blocks a sync.
+async function recordSyncStatus(status) {
+  try {
+    const adminDb = require('./adminDb');
+    const previous = await getSyncStatus();
+    const lastSuccessAt = status.ok ? status.at : previous?.lastSuccessAt || null;
+    await adminDb.setSetting(SYNC_STATUS_KEY, JSON.stringify({ ...status, lastSuccessAt }));
+  } catch (error) {
+    console.error('Could not record the calendar sync status:', error.message || error);
+  }
+}
+
+async function getSyncStatus() {
+  try {
+    const adminDb = require('./adminDb');
+    const value = await adminDb.getSetting(SYNC_STATUS_KEY);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+}
 
 async function syncCalendar() {
+  try {
+    const races = await runCalendarSync();
+    await recordSyncStatus({ ok: true, at: new Date().toISOString(), sessions: races.length, error: null });
+    return races;
+  } catch (error) {
+    await recordSyncStatus({ ok: false, at: new Date().toISOString(), sessions: null, error: error.message || String(error) });
+    throw error;
+  }
+}
+
+async function runCalendarSync() {
   try {
     console.log('Fetching calendar from:', ICS_URL);
 
@@ -165,5 +199,6 @@ function getTypePriority(type) {
 }
 
 module.exports = {
+  getSyncStatus,
   syncCalendar
 };

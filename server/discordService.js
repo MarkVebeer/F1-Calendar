@@ -231,5 +231,6 @@ module.exports = {
   fetchGuildRoles,
   sendChannelMessage,
   buildBotInviteUrl,
-  isBotInGuild
+  isBotInGuild,
+  websiteButtonLabel: () => PUBLIC_APP_BUTTON_LABEL
 };

@@ -8,6 +8,30 @@
         "value": "sfmono-regular",
         "createdAt": "2026-11-25T09:27:09.962Z",
         "reason": "builder decision: the footer build hash is code and uses the ui-monospace stack recorded in DESIGN.md Typography (Label/Mono Font)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "gg sans",
+        "createdAt": "2026-11-26T09:34:18.410Z",
+        "reason": "approved shape brief: the Discord message preview reproduces Discord's own UI faithfully, so it uses Discord's typeface; nowhere else"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "client/src/dashboard.css"
+        ],
+        "createdAt": "2026-11-26T09:42:06.114Z",
+        "reason": "approved shape brief: the Discord message preview reproduces Discord's embed, which Discord draws with a coloured left edge; the only side edge in this file"
+      },
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "client/src/dashboard.css"
+        ],
+        "createdAt": "2026-11-26T09:42:06.434Z",
+        "reason": "approved shape brief: the Discord preview nests the embed inside the message exactly as Discord renders it; no other nesting in the dashboards"
       }
     ]
   }

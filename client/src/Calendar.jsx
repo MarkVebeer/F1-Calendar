@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './calendar.css'
 import BuildInfo from './BuildInfo'
 import TrackDrawing from './TrackDrawing'
-import Sheet from './Sheet'
+import Sheet, { holdScroll } from './Sheet'
 import { useTheme } from './theme'
 import { buildWeekendTimeline, groupBySeason, isWeekendFinished, selectVisibleWeekends } from './weekends'
 import { describeSession, isAllDay, isTimeTbc, weekendKey } from './sessions'
@@ -443,9 +443,22 @@ export default function Calendar() {
   const refreshNow = useCallback(() => setNowMs(Date.now()), [])
 
   useEffect(() => {
-    const onHashChange = () => setRoute(parseRoute(window.location.hash))
+    const onHashChange = () => {
+      // A weekend's entry takes the scroll mode of the page it was opened from (held below); it keeps the default.
+      if ('scrollRestoration' in history) history.scrollRestoration = 'auto'
+      setRoute(parseRoute(window.location.hash))
+    }
+    // Opening a weekend adds its #/ entry on top of this one: hold this one's scroll for the way back (Sheet.jsx).
+    const onClick = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      if (event.target.closest?.('a[href^="#/"]')) holdScroll()
+    }
     window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    document.addEventListener('click', onClick)
+    return () => {
+      window.removeEventListener('hashchange', onHashChange)
+      document.removeEventListener('click', onClick)
+    }
   }, [])
 
   const changeTimeZone = (zone) => {

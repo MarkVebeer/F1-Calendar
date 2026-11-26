@@ -12,9 +12,29 @@ const openSheets = []
 // Closing a sheet goes back one history entry (its own, or the weekend's #/ address). The browser would then
 // jump to the scroll position it stored for that entry, which on iPhone is off by the toolbar's height when the
 // toolbar had collapsed, so the page hops after every close. The page never scrolls behind a sheet, so there is
-// nothing to restore: leave the scroll where it is. The mode belongs to each history entry, so it is set before
-// the sheets' entries exist.
-if (typeof history !== 'undefined' && 'scrollRestoration' in history) history.scrollRestoration = 'manual'
+// nothing to restore: the entry under a sheet skips restoration. The mode belongs to each history entry, so it is
+// set on that entry just before the sheet's own entry is added, and taken off once back is done.
+// Only then: a page that always skips it lands on iPhone after a pull-to-refresh with its top under the status
+// bar, since the browser no longer restores the position it left during the refresh.
+const canHoldScroll = typeof history !== 'undefined' && 'scrollRestoration' in history
+export function holdScroll() {
+  if (!canHoldScroll) return
+  history.scrollRestoration = 'manual'
+  history.replaceState({ ...(history.state || {}), f1HoldScroll: true }, '')
+}
+
+if (canHoldScroll) {
+  // An entry left on 'manual' by an earlier version of the page would keep it across reloads.
+  if (!history.state?.f1HoldScroll) history.scrollRestoration = 'auto'
+  window.addEventListener('popstate', () => {
+    if (!history.state?.f1HoldScroll) return
+    // Back on the entry under a sheet. Restoration (skipped) has run before this event; restore the default after.
+    const { f1HoldScroll, ...state } = history.state
+    history.replaceState(Object.keys(state).length ? state : null, '')
+    history.scrollRestoration = 'auto'
+  })
+}
+
 const root = () => document.documentElement
 
 function syncPageDim() {
@@ -94,7 +114,11 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
   useEffect(() => {
     if (!open || !ownHistory) return undefined
     const { history } = window
-    history.pushState({ ...(history.state || {}), f1Sheet: historyKey }, '', window.location.href)
+    holdScroll()
+    const { f1HoldScroll, ...state } = history.state || {}
+    history.pushState({ ...state, f1Sheet: historyKey }, '', window.location.href)
+    // A new entry takes the mode of the one it leaves; the sheet's own entry keeps the default.
+    if (canHoldScroll) history.scrollRestoration = 'auto'
     let leftByBack = false
     const onPopState = () => {
       // Back moved off this sheet's entry: close it. (A sheet opened on top of this one leaves the entry in place.)

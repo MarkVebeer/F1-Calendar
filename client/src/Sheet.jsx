@@ -5,7 +5,16 @@ const START_SLOP = 6 // px of movement before a touch on the header counts as a 
 const CLOSE_DISTANCE = 0.25 // share of the sheet's height
 const CLOSE_VELOCITY = 0.5 // px per ms, a flick
 
-// Native <dialog>: focus moves in and stays in, Esc and the backdrop close it, focus returns to the opener.
+// Open sheets, the last one on top. While any is open the page is dimmed by its own layer (html.sheet-open,
+// see calendar.css) rather than the dialog's ::backdrop, which on iPhone turns the status bar into a solid bar.
+const openSheets = []
+const root = () => document.documentElement
+
+function syncPageDim() {
+  root().classList.toggle('sheet-open', openSheets.length > 0)
+}
+
+// Native <dialog>: focus moves in and stays in, Esc and a tap outside close it, focus returns to the opener.
 // On phones the sheet rises from the bottom edge and can be dragged down to close it: by its header, or anywhere
 // on its content once that is scrolled to the top.
 // The browser's back (button, edge swipe, mouse button) closes the sheet rather than leaving the page:
@@ -43,6 +52,35 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
     return () => {
       dialog.removeEventListener('touchmove', stop)
       dialog.removeEventListener('wheel', stop)
+    }
+  }, [open])
+
+  // Dim the page, and close on a tap outside: with no ::backdrop such a tap reaches the (inert) page, so it is
+  // caught on the document. Only the top sheet answers, and only when the press also began outside it, so
+  // selecting text from inside and letting go outside does not close it.
+  useEffect(() => {
+    const dialog = ref.current
+    if (!open || !dialog) return undefined
+    openSheets.push(dialog)
+    syncPageDim()
+    const isTop = () => openSheets[openSheets.length - 1] === dialog
+    const outside = (event) => !dialog.contains(event.target)
+    let pressedOutside = false
+    const onPointerDown = (event) => {
+      pressedOutside = isTop() && outside(event)
+    }
+    const onClick = (event) => {
+      if (pressedOutside && isTop() && outside(event)) onCloseRef.current()
+      pressedOutside = false
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('click', onClick, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('click', onClick, true)
+      const index = openSheets.indexOf(dialog)
+      if (index >= 0) openSheets.splice(index, 1)
+      syncPageDim()
     }
   }, [open])
 
@@ -109,6 +147,7 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
         if (raw < START_SLOP) return false
         current.active = true
         dialog.classList.add('is-dragging')
+        root().classList.add('sheet-dragging')
       }
       // Past the top it resists, like a rubber band; downwards it follows the finger.
       current.dy = raw > 0 ? raw : raw / 4
@@ -116,7 +155,7 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
       if (current.samples.length > 5) current.samples.shift()
       const height = dialog.offsetHeight || 1
       dialog.style.transform = `translateY(${current.dy}px)`
-      dialog.style.setProperty('--sheet-backdrop', String(Math.max(0, 1 - Math.max(0, current.dy) / height)))
+      root().style.setProperty('--sheet-backdrop', String(Math.max(0, 1 - Math.max(0, current.dy) / height)))
       return true
     }
 
@@ -127,6 +166,7 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
         suppressClick = false
       }, 0)
       dialog.classList.remove('is-dragging')
+      root().classList.remove('sheet-dragging')
 
       const [[t0, y0]] = current.samples
       const [t1, y1] = current.samples[current.samples.length - 1]
@@ -135,15 +175,19 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
       const close = !cancelled && current.dy > 0 && (current.dy > height * CLOSE_DISTANCE || velocity > CLOSE_VELOCITY)
 
       dialog.classList.add('is-settling')
+      root().classList.add('sheet-settling')
       if (close) {
         dialog.dataset.dragClosed = '1'
         dialog.style.transform = 'translateY(100%)'
-        dialog.style.setProperty('--sheet-backdrop', '0')
+        root().style.setProperty('--sheet-backdrop', '0')
         afterTransition(dialog, () => onCloseRef.current())
       } else {
         dialog.style.transform = ''
-        dialog.style.removeProperty('--sheet-backdrop')
-        afterTransition(dialog, () => dialog.classList.remove('is-settling'))
+        root().style.removeProperty('--sheet-backdrop')
+        afterTransition(dialog, () => {
+          dialog.classList.remove('is-settling')
+          root().classList.remove('sheet-settling')
+        })
       }
     }
 
@@ -266,7 +310,8 @@ function resetDrag(dialog) {
   delete dialog.dataset.dragClosed
   dialog.classList.remove('is-dragging', 'is-settling')
   dialog.style.transform = ''
-  dialog.style.removeProperty('--sheet-backdrop')
+  root().classList.remove('sheet-dragging', 'sheet-settling')
+  root().style.removeProperty('--sheet-backdrop')
 }
 
 // Runs once the settle transition ends; the timer covers reduced motion, where no transition runs.

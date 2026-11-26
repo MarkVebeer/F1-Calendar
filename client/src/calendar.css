@@ -998,27 +998,47 @@ body.cal-body {
   animation: sheet-in 260ms var(--ease-out);
 }
 
+/* No ::backdrop. On iPhone a fixed layer across the top of the screen turns the status bar into a solid bar of
+   its colour (instead of the blurred page), and switching back on close shows a grey frame. The page is dimmed
+   by a layer of its own instead (body::after below), which scrolls with the page and is never fixed.
+   A tap outside the sheet closes it in Sheet.jsx. */
 .sheet::backdrop {
+  display: none;
+}
+
+body {
+  position: relative;
+}
+
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2147483647;
   background: var(--backdrop);
-  animation: backdrop-in 200ms var(--ease-out);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 170ms var(--ease-in), visibility 0s linear 170ms;
+}
+
+/* --sheet-backdrop follows a drag on phones (set by Sheet.jsx); 1 otherwise. */
+html.sheet-open body::after {
+  opacity: var(--sheet-backdrop, 1);
+  visibility: visible;
+  transition: opacity 200ms var(--ease-out), visibility 0s;
+}
+
+html.sheet-dragging body::after {
+  transition: none;
+}
+
+html.sheet-settling body::after {
+  transition: opacity 260ms var(--ease-out), visibility 0s linear 260ms;
 }
 
 .sheet.is-closing {
   animation: sheet-out 170ms var(--ease-in) forwards;
-}
-
-.sheet.is-closing::backdrop {
-  animation: backdrop-out 170ms var(--ease-in) forwards;
-}
-
-/* A sheet on its way out takes no taps. This also matters on iPhone: the browser tints the status bar from what
-   it finds at the top of the page and gives up (showing its own grey) while that is an animating element. The
-   backdrop counts as the dialog there; letting the check pass through to the still page keeps the tint right. */
-.sheet.is-closing,
-.sheet.is-closing::backdrop,
-.sheet.is-settling,
-.sheet.is-settling::backdrop {
-  pointer-events: none;
 }
 
 @keyframes sheet-in {
@@ -1027,14 +1047,6 @@ body.cal-body {
 
 @keyframes sheet-out {
   to { opacity: 0; transform: translateY(6px) scale(0.99); }
-}
-
-@keyframes backdrop-in {
-  from { opacity: 0; }
-}
-
-@keyframes backdrop-out {
-  to { opacity: 0; }
 }
 
 .sheet button,
@@ -1155,21 +1167,13 @@ body.cal-body {
     cursor: pointer;
   }
 
-  /* Dragging: the sheet follows the finger and the backdrop fades with it (--sheet-backdrop, set by Sheet.jsx). */
+  /* Dragging: the sheet follows the finger and the dimming fades with it (--sheet-backdrop, set by Sheet.jsx). */
   .sheet.is-dragging .sheet-head {
     cursor: grabbing;
   }
 
   .sheet.is-settling {
     transition: transform 260ms var(--ease-out);
-  }
-
-  .sheet::backdrop {
-    opacity: var(--sheet-backdrop, 1);
-  }
-
-  .sheet.is-settling::backdrop {
-    transition: opacity 260ms var(--ease-out);
   }
 }
 
@@ -1368,10 +1372,14 @@ body.cal-body {
   }
 
   .sheet[open],
-  .sheet::backdrop,
-  .sheet.is-closing,
-  .sheet.is-closing::backdrop {
+  .sheet.is-closing {
     animation: none;
+  }
+
+  body::after,
+  html.sheet-open body::after,
+  html.sheet-settling body::after {
+    transition: none;
   }
 
   .icon-button,

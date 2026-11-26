@@ -12,7 +12,7 @@
     "build": "cd client && bun install --frozen-lockfile && bun run build",
     "start": "bun startprod.js",
     "tracks:build": "bun scripts/build-tracks.js",
-    "test": "bun test server/migrate.test.js && bun test server/siteSettings.test.js && bun test server/sessions.test.js && bun test server/weatherForecasts.test.js && bun test server/tracks client/src deploy"
+    "test": "bun test server/migrate.test.js && bun test server/discordGuildAuth.test.js && bun test server/siteSettings.test.js && bun test server/sessions.test.js && bun test server/weatherForecasts.test.js && bun test server/tracks client/src deploy"
   },
   "keywords": [
     "f1",

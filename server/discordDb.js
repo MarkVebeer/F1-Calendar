@@ -206,6 +206,10 @@ async function getNotificationsByGuild(guild_id) {
   }));
 }
 
+function getNotificationById(id) {
+  return discordDb.get('SELECT * FROM discord_notifications WHERE id = ?', [id]);
+}
+
 async function deleteNotification(id) {
   await discordDb.run('DELETE FROM discord_notifications WHERE id = ?', [id]);
 }
@@ -290,6 +294,7 @@ module.exports = {
   logDiscordNotification,
   addNotification,
   getNotificationsByGuild,
+  getNotificationById,
   deleteNotification,
   clearNotificationsByGuild,
   upsertWeatherConfig,

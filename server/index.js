@@ -111,6 +111,66 @@ async function requireDiscordAuth(req, res, next) {
   }
 }
 
+// ---------- which servers a Discord user may manage ----------
+// Owner or Administrator, as Discord reports it for the signed-in user. The list is cached briefly per user:
+// Discord rate-limits /users/@me/guilds, and one dashboard page asks about the same server several times.
+const GUILD_ADMIN_CACHE_MS = 60 * 1000;
+const guildAdminCache = new Map();
+
+function isGuildAdmin(guild) {
+  return guild.owner === true || (BigInt(guild.permissions || 0) & 8n) === 8n;
+}
+
+async function fetchAdminGuilds(discordUserId) {
+  const user = await discordDb.getDiscordUserById(discordUserId);
+  if (!user) {
+    const error = new Error('Discord user not found');
+    error.status = 401;
+    throw error;
+  }
+  const accessToken = await getValidDiscordAccessToken(user);
+  const guilds = (await discord.fetchUserGuilds(accessToken)).filter(isGuildAdmin);
+  guildAdminCache.set(discordUserId, { at: Date.now(), ids: new Set(guilds.map((guild) => String(guild.id))) });
+  return guilds;
+}
+
+async function adminGuildIds(discordUserId) {
+  const cached = guildAdminCache.get(discordUserId);
+  if (cached && Date.now() - cached.at < GUILD_ADMIN_CACHE_MS) return cached.ids;
+  await fetchAdminGuilds(discordUserId);
+  return guildAdminCache.get(discordUserId).ids;
+}
+
+// Lets the request through only when the signed-in user manages the server it is about.
+// getGuildId reads the server from the request; when it finds none, the route itself answers (400 or 404).
+function requireGuildAdmin(getGuildId) {
+  return async (req, res, next) => {
+    try {
+      const guildId = await getGuildId(req);
+      if (!guildId) return next();
+      const ids = await adminGuildIds(req.discordUserId);
+      if (!ids.has(String(guildId))) {
+        return res.status(403).json({ error: 'You do not own or administer this Discord server' });
+      }
+      req.guildId = String(guildId);
+      return next();
+    } catch (error) {
+      if (error.status === 401) return res.status(401).json({ error: 'Sign in with Discord again' });
+      console.error('Failed to check Discord server permissions:', error.message || error);
+      return res.status(502).json({ error: 'Discord could not confirm your server permissions, try again' });
+    }
+  };
+}
+
+const guildFromParams = (req) => req.params.guildId;
+const guildFromBody = (req) => req.body && req.body.guild_id;
+
+// A channel id must belong to the server it is saved for, or the bot would post into another server.
+async function channelBelongsToGuild(guildId, channelId) {
+  const channels = await discord.fetchGuildChannels(guildId);
+  return channels.some((channel) => String(channel.id) === String(channelId));
+}
+
 async function getValidDiscordAccessToken(user) {
   const expiresAt = user.token_expires_at ? Date.parse(user.token_expires_at) : 0;
   if (user.access_token && expiresAt > Date.now() + 60 * 1000) {
@@ -496,16 +556,8 @@ app.get('/api/discord/guilds', requireDiscordAuth, async (req, res) => {
 
 app.get('/api/discord/admin-guilds', requireDiscordAuth, async (req, res) => {
   try {
-    const user = await discordDb.getDiscordUserById(req.discordUserId);
-    const accessToken = await getValidDiscordAccessToken(user);
-    const guilds = await discord.fetchUserGuilds(accessToken);
-    
-    // Szűrjük csak az admin jogokkal rendelkező szervereket
-    // Administrator permission = 8 (bitwise)
-    const adminGuilds = guilds.filter(guild => {
-      const permissions = BigInt(guild.permissions || 0);
-      return guild.owner === true || (permissions & 8n) === 8n;
-    });
+    // Owner or Administrator only; this also refreshes the permission cache the server routes use.
+    const adminGuilds = await fetchAdminGuilds(req.discordUserId);
     
     // Ellenőrizzük, hogy a bot benne van-e az egyes szerveren
     const guildWithBotCheck = await Promise.all(
@@ -543,7 +595,7 @@ app.get('/api/admin/discord-guilds', requireAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/discord/guilds/:guildId/channels', requireDiscordAuth, async (req, res) => {
+app.get('/api/discord/guilds/:guildId/channels', requireDiscordAuth, requireGuildAdmin(guildFromParams), async (req, res) => {
   try {
     const channels = await discord.fetchGuildChannels(req.params.guildId);
     const textChannels = channels.filter((c) => c.type === 0);
@@ -554,7 +606,7 @@ app.get('/api/discord/guilds/:guildId/channels', requireDiscordAuth, async (req,
   }
 });
 
-app.get('/api/discord/guilds/:guildId/roles', requireDiscordAuth, async (req, res) => {
+app.get('/api/discord/guilds/:guildId/roles', requireDiscordAuth, requireGuildAdmin(guildFromParams), async (req, res) => {
   try {
     const roles = await discord.fetchGuildRoles(req.params.guildId);
     res.json(roles);
@@ -564,7 +616,7 @@ app.get('/api/discord/guilds/:guildId/roles', requireDiscordAuth, async (req, re
   }
 });
 
-app.get('/api/discord/config/:guildId', requireDiscordAuth, async (req, res) => {
+app.get('/api/discord/config/:guildId', requireDiscordAuth, requireGuildAdmin(guildFromParams), async (req, res) => {
   try {
     const config = await discordDb.getDiscordConfigByGuild(req.params.guildId);
     res.json(config || null);
@@ -573,7 +625,7 @@ app.get('/api/discord/config/:guildId', requireDiscordAuth, async (req, res) => 
   }
 });
 
-app.get('/api/discord/weather-config/:guildId', requireDiscordAuth, async (req, res) => {
+app.get('/api/discord/weather-config/:guildId', requireDiscordAuth, requireGuildAdmin(guildFromParams), async (req, res) => {
   try {
     const config = await discordDb.getWeatherConfigByGuild(req.params.guildId);
     res.json(config || null);
@@ -582,11 +634,14 @@ app.get('/api/discord/weather-config/:guildId', requireDiscordAuth, async (req, 
   }
 });
 
-app.post('/api/discord/config', requireDiscordAuth, async (req, res) => {
+app.post('/api/discord/config', requireDiscordAuth, requireGuildAdmin(guildFromBody), async (req, res) => {
   try {
     const { guild_id, channel_id, lead_minutes, timezone, role_id, role_map } = req.body;
     if (!guild_id || !channel_id || !lead_minutes || !timezone) {
       return res.status(400).json({ error: 'Missing fields' });
+    }
+    if (!(await channelBelongsToGuild(guild_id, channel_id))) {
+      return res.status(400).json({ error: 'That channel is not on this server' });
     }
     await discordDb.upsertDiscordConfig({
       guild_id,
@@ -603,11 +658,14 @@ app.post('/api/discord/config', requireDiscordAuth, async (req, res) => {
   }
 });
 
-app.post('/api/discord/weather-config', requireDiscordAuth, async (req, res) => {
+app.post('/api/discord/weather-config', requireDiscordAuth, requireGuildAdmin(guildFromBody), async (req, res) => {
   try {
     const { guild_id, channel_id, enabled, role_id, race_day_lead_minutes } = req.body;
     if (!guild_id) {
       return res.status(400).json({ error: 'Missing guild_id' });
+    }
+    if (channel_id && !(await channelBelongsToGuild(guild_id, channel_id))) {
+      return res.status(400).json({ error: 'That channel is not on this server' });
     }
 
     let raceDayLeadValue = null;
@@ -681,7 +739,7 @@ app.post('/api/sync', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/discord/test-notification', requireDiscordAuth, async (req, res) => {
+app.post('/api/discord/test-notification', requireDiscordAuth, requireGuildAdmin(guildFromBody), async (req, res) => {
   try {
     const { guild_id } = req.body;
     if (!guild_id) {
@@ -712,7 +770,7 @@ app.post('/api/discord/test-notification', requireDiscordAuth, async (req, res) 
   }
 });
 
-app.post('/api/discord/weather-test', requireDiscordAuth, async (req, res) => {
+app.post('/api/discord/weather-test', requireDiscordAuth, requireGuildAdmin(guildFromBody), async (req, res) => {
   try {
     const { guild_id } = req.body;
     if (!guild_id) {
@@ -740,7 +798,7 @@ app.post('/api/discord/weather-test', requireDiscordAuth, async (req, res) => {
 });
 
 // Notification management
-app.get('/api/discord/notifications/:guildId', requireDiscordAuth, async (req, res) => {
+app.get('/api/discord/notifications/:guildId', requireDiscordAuth, requireGuildAdmin(guildFromParams), async (req, res) => {
   try {
     const notifications = await discordDb.getNotificationsByGuild(req.params.guildId);
     res.json(notifications);
@@ -750,7 +808,7 @@ app.get('/api/discord/notifications/:guildId', requireDiscordAuth, async (req, r
   }
 });
 
-app.post('/api/discord/notifications', requireDiscordAuth, async (req, res) => {
+app.post('/api/discord/notifications', requireDiscordAuth, requireGuildAdmin(guildFromBody), async (req, res) => {
   try {
     const { guild_id, lead_minutes, event_types } = req.body;
     if (!guild_id || lead_minutes === undefined) {
@@ -765,8 +823,17 @@ app.post('/api/discord/notifications', requireDiscordAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/discord/notifications/:id', requireDiscordAuth, async (req, res) => {
+// The server comes from the stored reminder, not from the request.
+const guildFromNotification = async (req) => {
+  const notification = await discordDb.getNotificationById(req.params.id);
+  return notification ? notification.guild_id : null;
+};
+
+app.delete('/api/discord/notifications/:id', requireDiscordAuth, requireGuildAdmin(guildFromNotification), async (req, res) => {
   try {
+    if (!req.guildId) {
+      return res.status(404).json({ error: 'Reminder time not found' });
+    }
     await discordDb.deleteNotification(req.params.id);
     res.json({ success: true });
   } catch (error) {

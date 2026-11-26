@@ -16,6 +16,27 @@ export default function Sheet({ open, onClose, labelledBy, className = '', ownHi
   onCloseRef.current = onClose
   const historyKey = useId()
 
+  // While a sheet is open the page behind it stays put. Not with overflow: hidden on the page: on iPhone that
+  // resets the page's scrolled state, and Safari drops the blur behind the status bar until the sheet is gone.
+  // Instead, a swipe or wheel that is not scrolling the sheet's own content goes nowhere.
+  useEffect(() => {
+    const dialog = ref.current
+    if (!open || !dialog) return undefined
+    const scrollsInside = (event) => {
+      const area = event.target.closest?.('.sheet-body')
+      return Boolean(area && dialog.contains(area) && area.scrollHeight > area.clientHeight)
+    }
+    const stop = (event) => {
+      if (!scrollsInside(event)) event.preventDefault()
+    }
+    dialog.addEventListener('touchmove', stop, { passive: false })
+    dialog.addEventListener('wheel', stop, { passive: false })
+    return () => {
+      dialog.removeEventListener('touchmove', stop)
+      dialog.removeEventListener('wheel', stop)
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open || !ownHistory) return undefined
     const { history } = window

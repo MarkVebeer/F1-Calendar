@@ -82,10 +82,6 @@ html:has(body.cal-body) {
   color-scheme: var(--scheme);
 }
 
-html:has(dialog[open]) {
-  overflow: hidden;
-}
-
 body.cal-body {
   background: var(--bg);
   color: var(--text);

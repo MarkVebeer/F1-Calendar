@@ -1,27 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Calendar from './Calendar'
 import AdminPanel from './AdminPanel'
 import DiscordDashboard from './DiscordDashboard'
 
-function readView() {
-  const { hash } = window.location
-  if (hash === '#admin') return 'admin'
-  if (hash === '#discord') return 'discord'
-  return 'calendar'
+// Three pages: the public calendar (/), the Discord dashboard (/discord) and the admin panel (/admin).
+// Links between them are ordinary page loads; the calendar keeps its weekend links in the hash (#/2026/losail).
+const PAGES = {
+  '/discord': { title: 'Discord reminders · F1 Calendar', Page: DiscordDashboard },
+  '/admin': { title: 'Admin · F1 Calendar', Page: AdminPanel }
 }
 
-// The public calendar, plus the admin panel (#admin) and the Discord dashboard (#discord).
+function currentPage() {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  return PAGES[path] || null
+}
+
 function App() {
-  const [view, setView] = useState(readView)
+  const page = currentPage()
 
   useEffect(() => {
-    const onHashChange = () => setView(readView())
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+    if (page) document.title = page.title
+  }, [page])
 
-  if (view === 'admin') return <AdminPanel />
-  if (view === 'discord') return <DiscordDashboard />
+  if (page) return <page.Page />
   return <Calendar />
 }
 

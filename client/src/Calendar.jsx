@@ -7,7 +7,7 @@ import { useTheme } from './theme'
 import { buildWeekendTimeline, groupBySeason, isWeekendFinished, selectVisibleWeekends } from './weekends'
 import { describeSession, isTimeTbc, weekendKey } from './sessions'
 import { addDays, countdownParts, dateBlock, dayKey, formatDateRange, formatDay, formatTime, timeZoneCity, timeZoneLabel, titleCaseName } from './format'
-import { ChevronIcon, CloseIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon, WeatherIcon, describeWeather } from './icons'
+import { BellIcon, ChevronIcon, CloseIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon, WeatherIcon, describeWeather } from './icons'
 
 const DEFAULT_PAST_WEEKENDS_VISIBLE = 1
 const SOON_MS = 60 * 60 * 1000
@@ -301,7 +301,7 @@ function WeekendSheet({ weekend, highlight, nowMs, timeZone, weather, onClose, o
         {!weekend.isCustom && <TrackDrawing circuitId={grandPrix.circuit_id} name={weekend.title} className="sheet-track" />}
         <Schedule weekend={weekend} nowMs={nowMs} timeZone={timeZone} weather={weather} highlight={highlight} headingLevel={3} onOpenSettings={onOpenSettings} />
         <p className="sheet-foot">
-          Want reminders before each session? <a href="#discord">Set them up for your Discord server</a>.
+          Want reminders before each session? <a href="/discord">Set them up for your Discord server</a>.
         </p>
       </div>
     </div>
@@ -362,7 +362,7 @@ function SettingsSheet({ theme, onThemeChange, timeZone, onTimeZoneChange, onClo
         <section className="setting" aria-labelledby="discord-setting-title">
           <h3 id="discord-setting-title" className="setting-title">Discord reminders</h3>
           <p className="setting-hint">Server admins can post session reminders and weather to their own Discord server.</p>
-          <a className="button" href="#discord">Open the Discord dashboard</a>
+          <a className="button" href="/discord">Open the Discord dashboard</a>
         </section>
       </div>
     </div>
@@ -496,6 +496,12 @@ export default function Calendar() {
       <header className="cal-header">
         <h1 className="wordmark">F1 <span>Calendar</span></h1>
         <div className="header-actions">
+          {/* The way in for server admins; the admin panel stays reachable by its address only. */}
+          <a className="header-link" href="/discord" aria-label="Discord reminders">
+            <BellIcon size={18} />
+            <span className="header-link-long" aria-hidden="true">Discord reminders</span>
+            <span className="header-link-short" aria-hidden="true">Reminders</span>
+          </a>
           <button
             type="button"
             className="icon-button"
@@ -674,12 +680,13 @@ export default function Calendar() {
 
       <footer className="cal-footer">
         {races && upcomingCount > 0 && <p>{upcomingCount} upcoming Grand Prix in the calendar</p>}
-        <p><a href="#discord">Session reminders on Discord</a></p>
+        <p><a href="/discord">Session reminders on Discord</a></p>
         {showOsmCredit && <p>Track data © OpenStreetMap contributors</p>}
         <BuildInfo timeZone={timeZone} />
       </footer>
 
-      <Sheet open={Boolean(routeWeekend)} onClose={closeWeekend} labelledBy="weekend-sheet-title" className="sheet--weekend">
+      {/* The weekend's address is its history entry: back closes it through the hash route. */}
+      <Sheet open={Boolean(routeWeekend)} onClose={closeWeekend} labelledBy="weekend-sheet-title" className="sheet--weekend" ownHistory={false}>
         {sheetWeekend && (
           <WeekendSheet
             weekend={sheetWeekend}

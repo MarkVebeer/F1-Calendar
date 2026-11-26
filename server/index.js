@@ -511,7 +511,7 @@ app.get('/api/discord/callback', async (req, res) => {
       maxAge: DISCORD_SESSION_TTL_MS
     });
 
-    res.redirect(`${FRONTEND_URL}/#discord`);
+    res.redirect(`${FRONTEND_URL}/discord`);
   } catch (error) {
     console.error('Discord OAuth callback error:', error.message || error);
     res.status(500).send('Discord authentication failed');
@@ -1031,7 +1031,12 @@ app.post('/api/admin/weather-debug', requireAdmin, async (req, res) => {
 
 if (IS_PRODUCTION && fs.existsSync(CLIENT_DIST_PATH)) {
   app.use(express.static(CLIENT_DIST_PATH));
+  // Every page (/, /discord, /admin) is the same app; it picks the page from the path.
   app.get(/^\/(?!api).*/, (req, res) => {
+    if (/^\/admin\/?$/.test(req.path)) {
+      // Not linked anywhere and not for search results.
+      res.set('X-Robots-Tag', 'noindex, nofollow');
+    }
     res.sendFile(path.join(CLIENT_DIST_PATH, 'index.html'));
   });
 }

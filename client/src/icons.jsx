@@ -40,7 +40,8 @@ export const PlusIcon = (p) => <Icon {...p}><path d="M12 5v14M5 12h14" /></Icon>
 export const TrashIcon = (p) => <Icon {...p}><path d="M4.5 7h15M10 11v6M14 11v6M6.5 7l1 12.5h9l1-12.5M9.5 7V4.5h5V7" /></Icon>
 export const CheckIcon = (p) => <Icon {...p}><path d="m5 12.5 4.5 4.5L19 7.5" /></Icon>
 export const RefreshIcon = (p) => <Icon {...p}><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" /></Icon>
-export const SendIcon = (p) => <Icon {...p}><path d="M20 4 10.5 13.5M20 4l-6 16-3.5-6.5L4 10Z" /></Icon>
+export const BellIcon = (p) => <Icon {...p}><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z" /><path d="M10 21h4" /></Icon>
+export const SendIcon =(p) => <Icon {...p}><path d="M20 4 10.5 13.5M20 4l-6 16-3.5-6.5L4 10Z" /></Icon>
 export const AlertIcon = (p) => <Icon {...p}><path d="M12 4 21 19.5H3Z" /><path d="M12 10v4M12 17h.01" /></Icon>
 
 // Weather glyphs, chosen from Meteoblue's daily pictocode.

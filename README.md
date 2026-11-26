@@ -272,7 +272,7 @@ f1.example.com {
    https://f1.example.com/api/discord/callback
    ```
 5. On the **Bot** page, create a token and put it in `DISCORD_BOT_TOKEN`.
-6. Restart the app, open `https://f1.example.com/#discord`, sign in, and use **Invite bot** to add it to a server.
+6. Restart the app, open `https://f1.example.com/discord`, sign in, and use **Invite bot** to add it to a server.
 
 The invite requests permission to view channels, send messages, manage messages, read message history, mention roles and use application commands.
 
@@ -290,7 +290,7 @@ The home page shows the current or next weekend at the top, followed by the list
 
 ### Admin panel
 
-Open `/#admin` on your site, for example `https://f1.example.com/#admin`. There is no link to it on the page.
+Open `/admin` on your site, for example `https://f1.example.com/admin`. There is no link to it on the page.
 
 | Section | Purpose |
 |---|---|
@@ -304,7 +304,7 @@ Open `/#admin` on your site, for example `https://f1.example.com/#admin`. There 
 
 ### Discord dashboard
 
-Open `/#discord` or use the **Discord dashboard** button. You can manage servers that you own or have the Administrator permission on.
+Open `/discord` or use the **Discord dashboard** button. You can manage servers that you own or have the Administrator permission on.
 
 | Section | Purpose |
 |---|---|

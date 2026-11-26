@@ -197,6 +197,51 @@ body.cal-body {
   color: var(--text);
 }
 
+/* Discord reminders: a quiet pill beside the icons. Neutral, because red belongs to the one primary action. */
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 150ms var(--ease-out);
+}
+
+.header-link:hover {
+  background: var(--surface-2);
+}
+
+.header-link svg {
+  color: var(--text-2);
+}
+
+.header-link-short {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .header-link {
+    padding: 0 12px;
+    gap: 6px;
+  }
+
+  .header-link-long {
+    display: none;
+  }
+
+  .header-link-short {
+    display: inline;
+  }
+}
+
 .notice {
   display: flex;
   flex-wrap: wrap;
@@ -1092,6 +1137,30 @@ body.cal-body {
   .sheet-head {
     position: relative;
     padding-top: 22px;
+    /* The header is the drag handle: the browser must not scroll or navigate with it. */
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .sheet-head button {
+    cursor: pointer;
+  }
+
+  /* Dragging: the sheet follows the finger and the backdrop fades with it (--sheet-backdrop, set by Sheet.jsx). */
+  .sheet.is-dragging .sheet-head {
+    cursor: grabbing;
+  }
+
+  .sheet.is-settling {
+    transition: transform 260ms var(--ease-out);
+  }
+
+  .sheet::backdrop {
+    opacity: var(--sheet-backdrop, 1);
+  }
+
+  .sheet.is-settling::backdrop {
+    transition: opacity 260ms var(--ease-out);
   }
 }
 

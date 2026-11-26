@@ -20,7 +20,7 @@ export function DashShell({ title, account, children }) {
     <div className="cal dash">
       <a className="skip-link" href="#dash-main">Skip to content</a>
       <header className="cal-header dash-header">
-        <a className="wordmark-link" href="#" aria-label="F1 Calendar, back to the calendar">
+        <a className="wordmark-link" href="/" aria-label="F1 Calendar, back to the calendar">
           <span className="wordmark">F1 <span>Calendar</span></span>
         </a>
         <div className="header-actions">
@@ -40,7 +40,7 @@ export function DashShell({ title, account, children }) {
         {children}
       </main>
       <footer className="cal-footer">
-        <p><a href="#">Back to the calendar</a></p>
+        <p><a href="/">Back to the calendar</a></p>
         <BuildInfo />
       </footer>
     </div>
